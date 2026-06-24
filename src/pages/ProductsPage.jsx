@@ -97,7 +97,7 @@ function FrequencyPicker({ form, setForm }) {
 }
 
 // ── Add / Edit Product Modal ──────────────────────────────────
-function ProductFormModal({ product, products, onClose, onSave }) {
+function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
   const isEdit = Boolean(product)
   const fileRef = useRef()
   // [Fix 4] Advanced section collapsed by default for new products; open if editing and has data
@@ -257,8 +257,22 @@ function ProductFormModal({ product, products, onClose, onSave }) {
           {isEdit ? '儲存' : '加入產品'}
         </button>
 
-        {isEdit && (
-          <div style={{ height: 8 }} />
+        {isEdit && onDelete && (
+          <button
+            onClick={() => {
+              if (confirm(`確定要刪除「${product.nickname || product.name || '此產品'}」？`)) {
+                onDelete(product.id)
+                onClose()
+              }
+            }}
+            style={{
+              marginTop: 10, width: '100%', padding: '11px 0', borderRadius: 14,
+              background: 'none', border: '0.5px solid #E8C0C0',
+              color: '#C06060', fontSize: 14, cursor: 'pointer',
+            }}
+          >
+            刪除產品
+          </button>
         )}
       </div>
     </div>
@@ -267,7 +281,6 @@ function ProductFormModal({ product, products, onClose, onSave }) {
 
 // ── Product Card ──────────────────────────────────────────────
 function ProductCard({ product, products, onDelete, onUpdate }) {
-  const [showMenu, setShowMenu] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
 
   const today = todayKey()
@@ -323,11 +336,12 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
                 )}
               </div>
             </div>
-            <button onClick={() => setShowMenu(s => !s)} style={{
+            <button onClick={() => setShowEdit(true)} style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-muted)', fontSize: 18, lineHeight: 1,
-              padding: 2, flexShrink: 0, marginLeft: 4,
-            }}>···</button>
+              color: 'var(--text-muted)', fontSize: 16, lineHeight: 1,
+              padding: '6px 8px', flexShrink: 0, marginLeft: 4,
+              borderRadius: 8,
+            }}>✎</button>
           </div>
 
           {/* Week dots */}
@@ -356,26 +370,13 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
         </div>
       </div>
 
-      {/* Context menu */}
-      {showMenu && (
-        <div style={{ borderTop: '0.5px solid var(--border-soft)', marginTop: 10, paddingTop: 8 }}>
-          <button onClick={() => { setShowEdit(true); setShowMenu(false) }} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 13, color: 'var(--text-secondary)', padding: '5px 0', display: 'block', width: '100%', textAlign: 'left',
-          }}>編輯</button>
-          <button onClick={() => { onDelete(product.id); setShowMenu(false) }} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 13, color: '#C06060', padding: '5px 0', display: 'block', marginTop: 2, width: '100%', textAlign: 'left',
-          }}>刪除產品</button>
-        </div>
-      )}
-
       {showEdit && (
         <ProductFormModal
           product={product}
           products={products}
           onClose={() => setShowEdit(false)}
           onSave={(patch) => onUpdate(product.id, patch)}
+          onDelete={onDelete}
         />
       )}
     </div>

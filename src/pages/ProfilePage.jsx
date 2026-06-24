@@ -163,7 +163,7 @@ function Section({ title, children }) {
   )
 }
 
-export default function ProfilePage({ store }) {
+export default function ProfilePage({ store, onOpenMakeup }) {
   const { state, updateSettings } = store
   const { settings, products } = state
 
@@ -238,6 +238,28 @@ export default function ProfilePage({ store }) {
         </div>
       </Section>
 
+      {/* [Fix 8] Makeup reference entry */}
+      {onOpenMakeup && (
+        <Section title="工具">
+          <button
+            onClick={onOpenMakeup}
+            className="card"
+            style={{
+              width: '100%', padding: '14px 16px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left',
+              border: '0.5px solid var(--border-soft)',
+            }}
+          >
+            <span style={{ fontSize: 22 }}>✿</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>化妝順序參考</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>完整版 · 精簡版 · 約會版</div>
+            </div>
+            <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>›</span>
+          </button>
+        </Section>
+      )}
+
       {/* User name */}
       <Section title="個人設定">
         <div className="card" style={{ padding: '14px' }}>
@@ -256,21 +278,13 @@ export default function ProfilePage({ store }) {
         {saved ? '✓ 已儲存' : '儲存設定'}
       </button>
 
-      <div style={{ marginTop: 32, paddingTop: 20, borderTop: '0.5px solid var(--border-soft)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* [Fix 10] Removed 清除本機快取 — developer tool not for end users */}
+      <div style={{ marginTop: 32, paddingTop: 20, borderTop: '0.5px solid var(--border-soft)' }}>
         <button
           onClick={() => supabase.auth.signOut()}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-secondary)', padding: '4px 0', textAlign: 'left' }}
         >
           登出
-        </button>
-        <button onClick={() => {
-          if (confirm('確定要清除所有資料嗎？此操作無法復原。')) {
-            localStorage.removeItem('beautyGarden_v1')
-            localStorage.removeItem('beautyGarden_v2')
-            location.reload()
-          }
-        }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)', padding: '4px 0', textAlign: 'left' }}>
-          清除本機快取
         </button>
       </div>
       <div style={{ height: 24 }} />

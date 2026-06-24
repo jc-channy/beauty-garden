@@ -84,40 +84,60 @@ function CheckItem({ product, usedToday, onToggle }) {
   )
 }
 
-function RoutineSection({ title, products, usedToday, onToggle, emptyMsg }) {
+function RoutineSection({ title, products, usedToday, onToggle, emptyMsg, defaultCollapsed }) {
+  const [collapsed, setCollapsed] = React.useState(defaultCollapsed ?? false)
   const done = products.filter(p => usedToday.has(p.id)).length
+  const allDone = products.length > 0 && done === products.length
 
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 10,
-      }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-secondary)' }}>{title}</div>
-        {products.length > 0 && (
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            {done} / {products.length}
-          </div>
-        )}
+    <div style={{ marginBottom: 16 }}>
+      <div
+        style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: collapsed ? 0 : 10,
+          cursor: 'pointer', userSelect: 'none',
+          padding: '4px 0',
+        }}
+        onClick={() => setCollapsed(s => !s)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-secondary)' }}>{title}</div>
+          {allDone && <span style={{ fontSize: 11, color: '#5A8A50', background: '#EEF4EC', borderRadius: 6, padding: '1px 6px' }}>完成 ✓</span>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {products.length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              {done} / {products.length}
+            </div>
+          )}
+          <span style={{
+            fontSize: 12, color: 'var(--text-muted)',
+            transition: 'transform 0.2s',
+            transform: collapsed ? 'rotate(-90deg)' : 'none',
+            display: 'inline-block',
+          }}>▾</span>
+        </div>
       </div>
 
-      {products.length === 0 ? (
-        <div style={{
-          padding: '14px 14px', borderRadius: 14,
-          border: '0.5px dashed var(--border-soft)',
-          fontSize: 13, color: 'var(--text-muted)', textAlign: 'center',
-        }}>
-          {emptyMsg}
-        </div>
-      ) : (
-        products.map(p => (
-          <CheckItem
-            key={p.id}
-            product={p}
-            usedToday={usedToday.has(p.id)}
-            onToggle={onToggle}
-          />
-        ))
+      {!collapsed && (
+        products.length === 0 ? (
+          <div style={{
+            padding: '14px 14px', borderRadius: 14,
+            border: '0.5px dashed var(--border-soft)',
+            fontSize: 13, color: 'var(--text-muted)', textAlign: 'center',
+          }}>
+            {emptyMsg}
+          </div>
+        ) : (
+          products.map(p => (
+            <CheckItem
+              key={p.id}
+              product={p}
+              usedToday={usedToday.has(p.id)}
+              onToggle={onToggle}
+            />
+          ))
+        )
       )}
     </div>
   )
@@ -158,6 +178,10 @@ export default function HomePage({ store, onManageGroups }) {
   const doneRoutine = [...allGroupProductIds].filter(id => usedTodaySet.has(id)).length
   const totalRoutine = allGroupProductIds.size
   const allDone = totalRoutine > 0 && doneRoutine === totalRoutine
+
+  // Before noon → collapse PM; noon onwards → collapse AM
+  const hour = new Date().getHours()
+  const isEvening = hour >= 12
 
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 22 }}>
@@ -292,6 +316,7 @@ export default function HomePage({ store, onManageGroups }) {
             usedToday={usedTodaySet}
             onToggle={toggleProductUseToday}
             emptyMsg="這個組別還沒有設定早上步驟"
+            defaultCollapsed={isEvening}
           />
           <RoutineSection
             title="🌙 晚上保養"
@@ -299,6 +324,7 @@ export default function HomePage({ store, onManageGroups }) {
             usedToday={usedTodaySet}
             onToggle={toggleProductUseToday}
             emptyMsg="這個組別還沒有設定晚上步驟"
+            defaultCollapsed={!isEvening}
           />
         </>
       )}

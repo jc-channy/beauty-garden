@@ -169,18 +169,26 @@ function StepItem({ step }) {
   )
 }
 
-export default function MakeupPage() {
+export default function MakeupPage({ onBack }) {
   const [activeKey, setActiveKey] = useState('full')
   const routine = ROUTINES[activeKey]
 
   const totalSteps = routine.sections.reduce((sum, s) => sum + s.steps.length, 0)
 
   return (
-    <div className="page-scroll fade-in" style={{ paddingTop: 24 }}>
+    <div className="page-scroll fade-in" style={{ paddingTop: 14 }}>
       {/* Header */}
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>化妝順序</div>
-        <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 2 }}>每步驟附帶小技巧</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+        {onBack && (
+          <button onClick={onBack} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 22, color: 'var(--text-secondary)', padding: '0 4px', lineHeight: 1,
+          }}>‹</button>
+        )}
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>化妝順序</div>
+          <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 2 }}>每步驟附帶小技巧</div>
+        </div>
       </div>
 
       {/* Tab switcher */}

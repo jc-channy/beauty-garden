@@ -64,6 +64,7 @@ export default function App() {
 function MainApp({ userId }) {
   const [tab, setTab] = useState('home')
   const [showGroups, setShowGroups] = useState(false)
+  const [showMakeup, setShowMakeup] = useState(false)
   const store = useStore(userId)
 
   if (store.loading) return <LoadingScreen />
@@ -72,11 +73,14 @@ function MainApp({ userId }) {
     return <GroupsPage store={store} onBack={() => setShowGroups(false)} />
   }
 
+  if (showMakeup) {
+    return <MakeupPage onBack={() => setShowMakeup(false)} />
+  }
+
   const pages = {
     home:     <HomePage     store={store} onManageGroups={() => setShowGroups(true)} />,
     products: <ProductsPage store={store} />,
-    makeup:   <MakeupPage />,
-    profile:  <ProfilePage  store={store} />,
+    profile:  <ProfilePage  store={store} onOpenMakeup={() => setShowMakeup(true)} />,
   }
 
   return (
