@@ -107,8 +107,6 @@ function ProductFormModal({ product, products, onClose, onSave }) {
     name:          product?.name          || '',
     category:      product?.category      || '',
     effects:       product?.effects       || [],
-    inDay:         product?.dayOrder   !== null && product?.dayOrder   !== undefined,
-    inNight:       product?.nightOrder !== null && product?.nightOrder !== undefined,
     frequencyMode: product?.frequencyMode || 'daily',
     targetDays:    product?.targetDays    || [],
     timesPerWeek:  product?.timesPerWeek  || 3,
@@ -128,19 +126,9 @@ function ProductFormModal({ product, products, onClose, onSave }) {
     }))
   }
 
-  function getNextOrder(field) {
-    const orders = products
-      .filter(p => p[field] !== null && p[field] !== undefined && p.id !== product?.id)
-      .map(p => p[field])
-    return orders.length > 0 ? Math.max(...orders) + 1 : 1
-  }
-
   function handleSave() {
     const displayName = form.nickname || form.name || form.brand
     if (!displayName.trim()) return
-
-    const dayOrder   = form.inDay   ? (product?.dayOrder   ?? getNextOrder('dayOrder'))   : null
-    const nightOrder = form.inNight ? (product?.nightOrder ?? getNextOrder('nightOrder')) : null
 
     onSave({
       nickname:      form.nickname,
@@ -148,10 +136,6 @@ function ProductFormModal({ product, products, onClose, onSave }) {
       name:          form.name,
       category:      form.category,
       effects:       form.effects,
-      dayOk:         form.inDay,
-      nightOk:       form.inNight,
-      dayOrder,
-      nightOrder,
       frequencyMode: form.frequencyMode,
       targetDays:    form.targetDays,
       timesPerWeek:  form.timesPerWeek,
@@ -234,28 +218,6 @@ function ProductFormModal({ product, products, onClose, onSave }) {
           ))}
         </div>
 
-        {/* Routine */}
-        <label style={sectionLabel}>加入保養步驟</label>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          {[
-            { key: 'inDay', label: '🌤 早上', desc: '加入早上保養' },
-            { key: 'inNight', label: '🌙 晚上', desc: '加入晚上保養' },
-          ].map(opt => (
-            <button key={opt.key} onClick={() => setForm(f => ({ ...f, [opt.key]: !f[opt.key] }))} style={{
-              flex: 1, padding: '10px 8px', borderRadius: 12, border: '0.5px solid',
-              borderColor: form[opt.key] ? '#A8C8A0' : 'var(--border-soft)',
-              background: form[opt.key] ? '#EEF4EC' : 'var(--bg-surface)',
-              color: form[opt.key] ? '#5A7A52' : 'var(--text-muted)',
-              cursor: 'pointer', fontSize: 13, fontWeight: form[opt.key] ? 500 : 400,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-            }}>
-              <span style={{ fontSize: 18 }}>{opt.label.split(' ')[0]}</span>
-              <span style={{ fontSize: 12 }}>{opt.label.split(' ')[1]}</span>
-              {form[opt.key] && <span style={{ fontSize: 10, color: '#7AAA6A' }}>✓ 已加入</span>}
-            </button>
-          ))}
-        </div>
-
         <FrequencyPicker form={form} setForm={setForm} />
 
         <button className="btn-primary" onClick={handleSave} disabled={!canSave}
@@ -283,9 +245,6 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
   const subLine = product.nickname
     ? [product.brand, product.name].filter(Boolean).join(' · ')
     : [product.brand].filter(Boolean).join('')
-
-  const inAM = product.dayOrder   !== null && product.dayOrder   !== undefined
-  const inPM = product.nightOrder !== null && product.nightOrder !== undefined
 
   return (
     <div className="card fade-in" style={{ padding: '13px 14px', marginBottom: 8 }}>
@@ -333,8 +292,6 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
                 {(product.effects || []).length > 3 && (
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>+{product.effects.length - 3}</span>
                 )}
-                {inAM && <span style={{ fontSize: 12 }}>🌤</span>}
-                {inPM && <span style={{ fontSize: 12 }}>🌙</span>}
               </div>
             </div>
             <button onClick={() => setShowMenu(s => !s)} style={{

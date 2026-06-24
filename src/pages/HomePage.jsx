@@ -38,7 +38,6 @@ function CheckItem({ product, usedToday, onToggle }) {
       }}
       onClick={() => onToggle(product.id)}
     >
-      {/* Check circle */}
       <div style={{
         width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
         border: `1.5px solid ${usedToday ? '#7AAA6A' : '#D8CCBF'}`,
@@ -50,7 +49,6 @@ function CheckItem({ product, usedToday, onToggle }) {
         {usedToday ? '✓' : ''}
       </div>
 
-      {/* Image */}
       {product.imagePreview && (
         <img src={product.imagePreview} alt={displayName} style={{
           width: 36, height: 36, borderRadius: 9, objectFit: 'cover',
@@ -59,7 +57,6 @@ function CheckItem({ product, usedToday, onToggle }) {
         }} />
       )}
 
-      {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 14, fontWeight: 500,
@@ -99,7 +96,7 @@ function RoutineSection({ title, products, usedToday, onToggle, emptyMsg }) {
 
       {products.length === 0 ? (
         <div style={{
-          padding: '16px 14px', borderRadius: 14,
+          padding: '14px 14px', borderRadius: 14,
           border: '0.5px dashed var(--border-soft)',
           fontSize: 13, color: 'var(--text-muted)', textAlign: 'center',
         }}>
@@ -119,30 +116,36 @@ function RoutineSection({ title, products, usedToday, onToggle, emptyMsg }) {
   )
 }
 
-export default function HomePage({ store }) {
+export default function HomePage({ store, onManageGroups }) {
   const { state, toggleProductUseToday } = store
   const today = todayKey()
-  const products = state.products
+  const { products, routineGroups, settings } = state
   const streak = getStreak(products)
   const monthlyRate = getMonthlyRate(products)
+
+  // Selected group index stored in component — defaults to 0
+  const [selectedGroupId, setSelectedGroupId] = React.useState(null)
+
+  // Resolve selected group
+  const groups = routineGroups || []
+  const effectiveGroupId = selectedGroupId ?? groups[0]?.id ?? null
+  const selectedGroup = groups.find(g => g.id === effectiveGroupId) || null
 
   const usedTodaySet = new Set(
     products.filter(p => (p.usageLog || []).includes(today)).map(p => p.id)
   )
 
-  const amProducts = [...products]
-    .filter(p => p.dayOrder !== null && p.dayOrder !== undefined)
-    .sort((a, b) => a.dayOrder - b.dayOrder)
+  // Resolve products in order for the selected group
+  function resolveItems(ids) {
+    return (ids || []).map(id => products.find(p => p.id === id)).filter(Boolean)
+  }
 
-  const pmProducts = [...products]
-    .filter(p => p.nightOrder !== null && p.nightOrder !== undefined)
-    .sort((a, b) => a.nightOrder - b.nightOrder)
+  const amProducts = selectedGroup ? resolveItems(selectedGroup.dayItems) : []
+  const pmProducts = selectedGroup ? resolveItems(selectedGroup.nightItems) : []
 
-  const allRoutineProducts = new Set([...amProducts, ...pmProducts].map(p => p.id))
-  const totalRoutine = allRoutineProducts.size
-  const doneRoutine = [...allRoutineProducts].filter(id => usedTodaySet.has(id)).length
-
-  const hasAnyRoutine = amProducts.length > 0 || pmProducts.length > 0
+  const allGroupProductIds = new Set([...amProducts, ...pmProducts].map(p => p.id))
+  const doneRoutine = [...allGroupProductIds].filter(id => usedTodaySet.has(id)).length
+  const totalRoutine = allGroupProductIds.size
 
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 22 }}>
@@ -152,7 +155,7 @@ export default function HomePage({ store }) {
           {formatHeader()}
         </div>
         <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.4 }}>
-          {getTimeGreeting(state.settings.userName)}
+          {getTimeGreeting(settings.userName)}
         </div>
         {streak > 1 && (
           <div style={{ fontSize: 12, color: '#9A7A5A', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -161,12 +164,59 @@ export default function HomePage({ store }) {
         )}
       </div>
 
+      {/* Group switcher */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <div style={{
+          flex: 1, display: 'flex', gap: 6, overflowX: 'auto',
+          paddingBottom: 2, scrollbarWidth: 'none',
+        }}>
+          {groups.length === 0 ? (
+            <button
+              onClick={onManageGroups}
+              style={{
+                flexShrink: 0, padding: '6px 14px', borderRadius: 20,
+                border: '0.5px dashed var(--border-soft)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-muted)',
+                fontSize: 13, cursor: 'pointer',
+              }}
+            >＋ 建立第一個組別</button>
+          ) : (
+            groups.map(g => {
+              const sel = g.id === effectiveGroupId
+              return (
+                <button key={g.id} onClick={() => setSelectedGroupId(g.id)} style={{
+                  flexShrink: 0, padding: '6px 14px', borderRadius: 20,
+                  border: '0.5px solid',
+                  borderColor: sel ? '#A8C8A0' : 'var(--border-soft)',
+                  background: sel ? '#EEF4EC' : 'var(--bg-card)',
+                  color: sel ? '#5A7A52' : 'var(--text-muted)',
+                  fontSize: 13, cursor: 'pointer',
+                  fontWeight: sel ? 500 : 400,
+                }}>{g.name}</button>
+              )
+            })
+          )}
+        </div>
+        {/* Manage button */}
+        <button
+          onClick={onManageGroups}
+          style={{
+            flexShrink: 0, width: 30, height: 30, borderRadius: '50%',
+            background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
+            cursor: 'pointer', fontSize: 15, color: 'var(--text-muted)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          title="管理組別"
+        >⚙</button>
+      </div>
+
       {/* Stats */}
-      {hasAnyRoutine && (
+      {groups.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {[
             { num: `${doneRoutine}/${totalRoutine}`, label: '今日完成', unit: '' },
-            { num: streak,        label: '連續天數', unit: '天' },
+            { num: streak, label: '連續天數', unit: '天' },
             { num: `${monthlyRate}%`, label: '本月完成率', unit: '' },
           ].map(item => (
             <div key={item.label} style={{
@@ -187,7 +237,19 @@ export default function HomePage({ store }) {
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Group notes */}
+      {selectedGroup?.notes && (
+        <div style={{
+          fontSize: 12, color: 'var(--text-muted)',
+          background: 'var(--bg-surface)', borderRadius: 10,
+          padding: '8px 12px', marginBottom: 14,
+          border: '0.5px solid var(--border-soft)',
+        }}>
+          {selectedGroup.notes}
+        </div>
+      )}
+
+      {/* No products at all */}
       {products.length === 0 && (
         <div style={{ textAlign: 'center', padding: '52px 0' }}>
           <div style={{ fontSize: 40, marginBottom: 14 }}>🌿</div>
@@ -196,42 +258,41 @@ export default function HomePage({ store }) {
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7 }}>
             到下方「產品」頁面新增你的第一瓶<br />
-            設定早晚順序後就會出現在這裡
+            再來這裡建立組別安排順序
           </div>
         </div>
       )}
 
-      {/* No routine set state */}
-      {products.length > 0 && !hasAnyRoutine && (
+      {/* No group selected / no groups */}
+      {products.length > 0 && groups.length === 0 && (
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🌸</div>
           <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 6 }}>
-            還沒設定保養順序
+            還沒有保養組別
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            到「產品」頁面編輯保養品<br />
-            設定早上／晚上的順序，就會顯示在這裡
+            點上方「建立第一個組別」<br />
+            設定早晚保養順序
           </div>
         </div>
       )}
 
-      {/* AM routine */}
-      {(amProducts.length > 0 || pmProducts.length > 0) && (
+      {/* Routine sections */}
+      {selectedGroup && (
         <>
           <RoutineSection
             title="🌤 早上保養"
             products={amProducts}
             usedToday={usedTodaySet}
             onToggle={toggleProductUseToday}
-            emptyMsg="沒有設定早上步驟"
+            emptyMsg="這個組別還沒有設定早上步驟"
           />
-
           <RoutineSection
             title="🌙 晚上保養"
             products={pmProducts}
             usedToday={usedTodaySet}
             onToggle={toggleProductUseToday}
-            emptyMsg="沒有設定晚上步驟"
+            emptyMsg="這個組別還沒有設定晚上步驟"
           />
         </>
       )}

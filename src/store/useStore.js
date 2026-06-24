@@ -85,7 +85,6 @@ export function getTotalStats(products) {
   return { activeDays: allDates.size, totalUses }
 }
 
-// ── Monthly completion rate ───────────────────────────────────
 export function getMonthlyRate(products) {
   const now = new Date()
   const year = now.getFullYear()
@@ -101,10 +100,10 @@ export function getMonthlyRate(products) {
   return today > 0 ? Math.round((allDates.size / today) * 100) : 0
 }
 
-// ── Data model ────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────
 export const CATEGORIES = [
   '卸妝','洗面乳','化妝水','精華液','安瓶','眼霜','乳液','乳霜','凝膠',
-  '面膜','防曬','唇部保養','妝前乳','粉底','遮瑕','蜜粉','修容','腮紅','唇彩',
+  '面膜','防曬','唇部保養',
 ]
 
 export const EFFECTS = [
@@ -112,9 +111,14 @@ export const EFFECTS = [
   '抗氧化','控油','抗痘','毛孔','去角質','黑眼圈','消腫','敏弱肌修護','術後修護',
 ]
 
+// ── Data model ────────────────────────────────────────────────
+// Product: { id, nickname, brand, name, category, effects, frequencyMode, targetDays, timesPerWeek, usageLog, imagePreview, addedAt }
+// RoutineGroup: { id, name, dayItems: string[], nightItems: string[], sortOrder }
+
 const INITIAL_STATE = {
   products: [],
-  settings: { userName: '', apiKey: '', apiProvider: 'anthropic' },
+  routineGroups: [],
+  settings: { userName: '' },
 }
 
 // ── DB mapping ────────────────────────────────────────────────
@@ -126,10 +130,6 @@ function rowToProduct(row) {
     name: row.name || '',
     category: row.category || '',
     effects: row.effects || [],
-    dayOk: row.day_ok !== false,
-    nightOk: row.night_ok !== false,
-    dayOrder: row.day_order ?? null,
-    nightOrder: row.night_order ?? null,
     frequencyMode: row.frequency_mode || 'daily',
     targetDays: row.target_days || [],
     timesPerWeek: row.times_per_week || 3,
@@ -148,16 +148,35 @@ function productToRow(p, userId) {
     name: p.name || '',
     category: p.category || '',
     effects: p.effects || [],
-    day_ok: p.dayOk !== false,
-    night_ok: p.nightOk !== false,
-    day_order: p.dayOrder ?? null,
-    night_order: p.nightOrder ?? null,
     frequency_mode: p.frequencyMode || 'daily',
     target_days: p.targetDays || [],
     times_per_week: p.timesPerWeek || 3,
     usage_log: p.usageLog || [],
     image_preview: p.imagePreview || '',
     added_at: p.addedAt || '',
+  }
+}
+
+function rowToGroup(row) {
+  return {
+    id: row.id,
+    name: row.name || '未命名',
+    notes: row.notes || '',
+    dayItems: row.day_items || [],
+    nightItems: row.night_items || [],
+    sortOrder: row.sort_order || 0,
+  }
+}
+
+function groupToRow(g, userId) {
+  return {
+    id: g.id,
+    user_id: userId,
+    name: g.name,
+    notes: g.notes || '',
+    day_items: g.dayItems,
+    night_items: g.nightItems,
+    sort_order: g.sortOrder,
   }
 }
 
@@ -175,26 +194,28 @@ export function useStore(userId) {
     try {
       const [
         { data: productRows },
+        { data: groupRows },
         { data: settingsRows },
       ] = await Promise.all([
         supabase.from('products').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
+        supabase.from('routine_groups').select('*').eq('user_id', userId).order('sort_order', { ascending: true }),
         supabase.from('user_settings').select('*').eq('user_id', userId),
       ])
 
       const products = (productRows || []).map(rowToProduct)
+      const routineGroups = (groupRows || []).map(rowToGroup)
       const settings = settingsRows?.[0] ? {
-        userName:    settingsRows[0].user_name    || '',
-        apiKey:      settingsRows[0].api_key      || '',
-        apiProvider: settingsRows[0].api_provider || 'anthropic',
+        userName: settingsRows[0].user_name || '',
       } : INITIAL_STATE.settings
 
-      setState({ products, settings })
+      setState({ products, routineGroups, settings })
     } catch (e) {
       console.error('Load error:', e)
     }
     setLoading(false)
   }
 
+  // ── Products ───────────────────────────────────────────────
   const toggleProductUseToday = useCallback((productId) => {
     const today = todayKey()
     let newLog
@@ -224,10 +245,6 @@ export function useStore(userId) {
       name: '',
       category: '',
       effects: [],
-      dayOk: true,
-      nightOk: true,
-      dayOrder: null,
-      nightOrder: null,
       frequencyMode: 'daily',
       targetDays: [],
       timesPerWeek: 3,
@@ -240,7 +257,6 @@ export function useStore(userId) {
     if (error) {
       console.error('Insert failed:', error)
       alert(`儲存失敗：${error.message}`)
-      // Roll back local state
       setState(prev => ({ ...prev, products: prev.products.filter(p => p.id !== newProduct.id) }))
     }
   }, [userId])
@@ -258,18 +274,70 @@ export function useStore(userId) {
   }, [userId])
 
   const deleteProduct = useCallback((id) => {
-    setState(prev => ({ ...prev, products: prev.products.filter(p => p.id !== id) }))
+    // Also remove from all groups
+    setState(prev => {
+      const groups = prev.routineGroups.map(g => {
+        const updated = {
+          ...g,
+          dayItems: g.dayItems.filter(pid => pid !== id),
+          nightItems: g.nightItems.filter(pid => pid !== id),
+        }
+        supabase.from('routine_groups').update({ day_items: updated.dayItems, night_items: updated.nightItems }).eq('id', g.id)
+        return updated
+      })
+      return { ...prev, products: prev.products.filter(p => p.id !== id), routineGroups: groups }
+    })
     supabase.from('products').delete().eq('id', id)
   }, [])
 
+  // ── Routine Groups ─────────────────────────────────────────
+  const addGroup = useCallback(async (name, notes = '') => {
+    const newGroup = {
+      id: Date.now().toString(),
+      name: name || '新組別',
+      notes: notes || '',
+      dayItems: [],
+      nightItems: [],
+      sortOrder: Date.now(),
+    }
+    setState(prev => ({ ...prev, routineGroups: [...prev.routineGroups, newGroup] }))
+    const { error } = await supabase.from('routine_groups').insert(groupToRow(newGroup, userId))
+    if (error) {
+      console.error('Group insert failed:', error)
+      setState(prev => ({ ...prev, routineGroups: prev.routineGroups.filter(g => g.id !== newGroup.id) }))
+    }
+    return newGroup.id
+  }, [userId])
+
+  const updateGroup = useCallback((id, patch) => {
+    setState(prev => {
+      const routineGroups = prev.routineGroups.map(g => {
+        if (g.id !== id) return g
+        const updated = { ...g, ...patch }
+        const row = {}
+        if (patch.name !== undefined) row.name = patch.name
+        if (patch.notes !== undefined) row.notes = patch.notes
+        if (patch.dayItems !== undefined) row.day_items = patch.dayItems
+        if (patch.nightItems !== undefined) row.night_items = patch.nightItems
+        supabase.from('routine_groups').update(row).eq('id', id)
+        return updated
+      })
+      return { ...prev, routineGroups }
+    })
+  }, [])
+
+  const deleteGroup = useCallback((id) => {
+    setState(prev => ({ ...prev, routineGroups: prev.routineGroups.filter(g => g.id !== id) }))
+    supabase.from('routine_groups').delete().eq('id', id)
+  }, [])
+
+  // ── Settings ───────────────────────────────────────────────
   const updateSettings = useCallback((patch) => {
     setState(prev => {
       const newSettings = { ...prev.settings, ...patch }
       supabase.from('user_settings').upsert({
         user_id: userId,
-        user_name:    newSettings.userName,
-        api_key:      newSettings.apiKey,
-        api_provider: newSettings.apiProvider,
+        user_name: newSettings.userName,
       }, { onConflict: 'user_id' })
       return { ...prev, settings: newSettings }
     })
@@ -282,6 +350,9 @@ export function useStore(userId) {
     addProduct,
     updateProduct,
     deleteProduct,
+    addGroup,
+    updateGroup,
+    deleteGroup,
     updateSettings,
   }
 }

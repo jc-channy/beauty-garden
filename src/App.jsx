@@ -3,6 +3,8 @@ import TabBar from './components/TabBar.jsx'
 import HomePage from './pages/HomePage.jsx'
 import ProductsPage from './pages/ProductsPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
+import GroupsPage from './pages/GroupsPage.jsx'
+import MakeupPage from './pages/MakeupPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import { useStore } from './store/useStore.js'
 import { supabase, isConfigured } from './lib/supabase.js'
@@ -61,13 +63,19 @@ export default function App() {
 
 function MainApp({ userId }) {
   const [tab, setTab] = useState('home')
+  const [showGroups, setShowGroups] = useState(false)
   const store = useStore(userId)
 
   if (store.loading) return <LoadingScreen />
 
+  if (showGroups) {
+    return <GroupsPage store={store} onBack={() => setShowGroups(false)} />
+  }
+
   const pages = {
-    home:     <HomePage     store={store} />,
+    home:     <HomePage     store={store} onManageGroups={() => setShowGroups(true)} />,
     products: <ProductsPage store={store} />,
+    makeup:   <MakeupPage />,
     profile:  <ProfilePage  store={store} />,
   }
 
