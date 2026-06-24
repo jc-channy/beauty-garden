@@ -173,7 +173,6 @@ function groupToRow(g, userId) {
     id: g.id,
     user_id: userId,
     name: g.name,
-    notes: g.notes || '',
     day_items: g.dayItems,
     night_items: g.nightItems,
     sort_order: g.sortOrder,
@@ -304,7 +303,6 @@ export function useStore(userId) {
     const { error } = await supabase.from('routine_groups').insert(groupToRow(newGroup, userId))
     if (error) {
       console.error('Group insert failed:', error)
-      alert(`新增失敗：${error.message}`)
       setState(prev => ({ ...prev, routineGroups: prev.routineGroups.filter(g => g.id !== newGroup.id) }))
     }
     return newGroup.id
