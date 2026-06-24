@@ -106,6 +106,22 @@ export const CATEGORIES = [
   '面膜','防曬','唇部保養',
 ]
 
+// Spring Meadow-inspired palette for category tags
+export const CATEGORY_COLORS = {
+  '卸妝':    { bg: '#F8DDCD', text: '#8A4030' },
+  '洗面乳':  { bg: '#AECBB8', text: '#2E6647' },
+  '化妝水':  { bg: '#C1DBDF', text: '#2A6878' },
+  '精華液':  { bg: '#F8C467', text: '#7A4E10' },
+  '安瓶':    { bg: '#F79E70', text: '#7A3010' },
+  '眼霜':    { bg: '#C8B3CA', text: '#5A2E6A' },
+  '乳液':    { bg: '#D4E4CC', text: '#3A5E30' },
+  '乳霜':    { bg: '#E8D4C0', text: '#7A4A28' },
+  '凝膠':    { bg: '#B8D8E4', text: '#1E6080' },
+  '面膜':    { bg: '#F2E8B4', text: '#6A5010' },
+  '防曬':    { bg: '#E89B88', text: '#7A2818' },
+  '唇部保養': { bg: '#D4AABE', text: '#7A2840' },
+}
+
 export const EFFECTS = [
   '保濕','補水','修護','舒緩','抗老','緊緻','美白','淡斑','提亮',
   '抗氧化','控油','抗痘','毛孔','去角質','黑眼圈','消腫','敏弱肌修護','術後修護',
@@ -183,6 +199,18 @@ function groupToRow(g, userId) {
 export function useStore(userId) {
   const [state, setState] = useState(INITIAL_STATE)
   const [loading, setLoading] = useState(true)
+
+  // groupDays: { [groupId]: number[] } — stored in localStorage (bypasses schema cache issue)
+  const [groupDays, setGroupDaysState] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('bg_groupDays') || '{}') } catch { return {} }
+  })
+  const setGroupTargetDays = useCallback((groupId, days) => {
+    setGroupDaysState(prev => {
+      const next = { ...prev, [groupId]: days }
+      localStorage.setItem('bg_groupDays', JSON.stringify(next))
+      return next
+    })
+  }, [])
 
   useEffect(() => {
     if (userId) loadData()
@@ -344,6 +372,8 @@ export function useStore(userId) {
   return {
     state,
     loading,
+    groupDays,
+    setGroupTargetDays,
     toggleProductUseToday,
     addProduct,
     updateProduct,

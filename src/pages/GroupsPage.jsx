@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react'
+import { CATEGORY_COLORS } from '../store/useStore.js'
 
 // ── Draggable list ────────────────────────────────────────────
 function DraggableList({ items, renderItem, onReorder }) {
@@ -102,7 +103,10 @@ function ProductPicker({ products, excludeIds, onAdd, onClose }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{name}</div>
                     {sub && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sub}</div>}
-                    {p.category && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.category}</div>}
+                    {p.category && (() => {
+                      const c = CATEGORY_COLORS[p.category] || { bg: '#EEE', text: '#666' }
+                      return <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, display: 'inline-block', marginTop: 2 }}>{p.category}</span>
+                    })()}
                   </div>
                   <span style={{ fontSize: 18, color: '#7AAA6A' }}>＋</span>
                 </div>
@@ -115,8 +119,10 @@ function ProductPicker({ products, excludeIds, onAdd, onClose }) {
   )
 }
 
+const DOW_LABELS = ['日', '一', '二', '三', '四', '五', '六']
+
 // ── Group card ────────────────────────────────────────────────
-function GroupCard({ group, products, onUpdate, onDelete }) {
+function GroupCard({ group, products, onUpdate, onDelete, groupDays, setGroupTargetDays }) {
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const [nameVal, setNameVal] = useState(group.name)
@@ -238,6 +244,29 @@ function GroupCard({ group, products, onUpdate, onDelete }) {
             onReorder={items => reorderSection('night', items)}
           />
 
+          {/* Day-of-week picker */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>套用星期（自動顯示）</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {DOW_LABELS.map((label, dow) => {
+                const sel = (groupDays[group.id] || []).includes(dow)
+                return (
+                  <button key={dow} onClick={() => {
+                    const cur = groupDays[group.id] || []
+                    const next = sel ? cur.filter(d => d !== dow) : [...cur, dow]
+                    setGroupTargetDays(group.id, next)
+                  }} style={{
+                    flex: 1, height: 34, borderRadius: 8, border: '0.5px solid',
+                    borderColor: sel ? '#A8C8A0' : 'var(--border-soft)',
+                    background: sel ? '#EEF4EC' : 'var(--bg-surface)',
+                    color: sel ? '#5A7A52' : 'var(--text-muted)',
+                    fontSize: 12, fontWeight: sel ? 600 : 400, cursor: 'pointer',
+                  }}>{label}</button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Group actions */}
           <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
             <button onClick={() => { setEditing(true); setExpanded(true) }} style={{
@@ -301,7 +330,10 @@ function SectionBlock({ title, items, onRemove, onAdd, onReorder }) {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-                  {p.category && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.category}</div>}
+                  {p.category && (() => {
+                    const c = CATEGORY_COLORS[p.category] || { bg: '#EEE', text: '#666' }
+                    return <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, display: 'inline-block', marginTop: 2 }}>{p.category}</span>
+                  })()}
                 </div>
                 <button onClick={() => onRemove(p.id)} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
@@ -359,7 +391,7 @@ function NewGroupModal({ onClose, onAdd }) {
 
 // ── Main page ─────────────────────────────────────────────────
 export default function GroupsPage({ store, onBack }) {
-  const { state, addGroup, updateGroup, deleteGroup } = store
+  const { state, addGroup, updateGroup, deleteGroup, groupDays, setGroupTargetDays } = store
   const { products, routineGroups } = state
   const [showNew, setShowNew] = useState(false)
 
@@ -402,6 +434,8 @@ export default function GroupsPage({ store, onBack }) {
           products={products}
           onUpdate={updateGroup}
           onDelete={deleteGroup}
+          groupDays={groupDays}
+          setGroupTargetDays={setGroupTargetDays}
         />
       ))}
 

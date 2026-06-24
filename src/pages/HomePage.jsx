@@ -1,5 +1,5 @@
 import React from 'react'
-import { todayKey, getStreak, getMonthlyRate } from '../store/useStore.js'
+import { todayKey, getStreak, getMonthlyRate, CATEGORY_COLORS } from '../store/useStore.js'
 
 function getTimeGreeting(userName) {
   const h = new Date().getHours()
@@ -67,11 +67,18 @@ function CheckItem({ product, usedToday, onToggle }) {
         }}>
           {displayName}
         </div>
-        {(subName || product.category) && (
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
-            {[subName, product.category].filter(Boolean).join(' · ')}
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2, flexWrap: 'wrap' }}>
+          {product.category && (() => {
+            const c = CATEGORY_COLORS[product.category] || { bg: '#EEE', text: '#666' }
+            return (
+              <span style={{
+                fontSize: 10, padding: '1px 6px', borderRadius: 6,
+                background: c.bg, color: c.text, fontWeight: 500,
+              }}>{product.category}</span>
+            )
+          })()}
+          {subName && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{subName}</span>}
+        </div>
       </div>
     </div>
   )
@@ -117,18 +124,24 @@ function RoutineSection({ title, products, usedToday, onToggle, emptyMsg }) {
 }
 
 export default function HomePage({ store, onManageGroups }) {
-  const { state, toggleProductUseToday } = store
+  const { state, toggleProductUseToday, groupDays } = store
   const today = todayKey()
   const { products, routineGroups, settings } = state
   const streak = getStreak(products)
   const monthlyRate = getMonthlyRate(products)
 
-  // Selected group index stored in component — defaults to 0
   const [selectedGroupId, setSelectedGroupId] = React.useState(null)
 
-  // Resolve selected group
   const groups = routineGroups || []
-  const effectiveGroupId = selectedGroupId ?? groups[0]?.id ?? null
+  const todayDow = new Date().getDay() // 0=Sun…6=Sat
+
+  // Auto-select: find group assigned to today, else groups[0]
+  const autoGroupId = React.useMemo(() => {
+    const match = groups.find(g => (groupDays[g.id] || []).includes(todayDow))
+    return match?.id ?? groups[0]?.id ?? null
+  }, [groups, groupDays, todayDow])
+
+  const effectiveGroupId = selectedGroupId ?? autoGroupId
   const selectedGroup = groups.find(g => g.id === effectiveGroupId) || null
 
   const usedTodaySet = new Set(
@@ -184,6 +197,7 @@ export default function HomePage({ store, onManageGroups }) {
           ) : (
             groups.map(g => {
               const sel = g.id === effectiveGroupId
+              const isAuto = g.id === autoGroupId
               return (
                 <button key={g.id} onClick={() => setSelectedGroupId(g.id)} style={{
                   flexShrink: 0, padding: '6px 14px', borderRadius: 20,
@@ -193,7 +207,11 @@ export default function HomePage({ store, onManageGroups }) {
                   color: sel ? '#5A7A52' : 'var(--text-muted)',
                   fontSize: 13, cursor: 'pointer',
                   fontWeight: sel ? 500 : 400,
-                }}>{g.name}</button>
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                  {isAuto && <span style={{ fontSize: 10, background: '#C8A87A', color: '#fff', borderRadius: 4, padding: '1px 4px' }}>今</span>}
+                  {g.name}
+                </button>
               )
             })
           )}

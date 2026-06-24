@@ -2,6 +2,97 @@ import React, { useState } from 'react'
 import { getStreak, getTotalStats, getMonthlyRate } from '../store/useStore.js'
 import { supabase } from '../lib/supabase.js'
 
+// ── Weekly habit tracker ──────────────────────────────────────
+function HabitTracker({ products }) {
+  // Build a set of all dates any product was used
+  const usageByDate = {}
+  products.forEach(p => {
+    ;(p.usageLog || []).forEach(d => {
+      usageByDate[d] = (usageByDate[d] || 0) + 1
+    })
+  })
+
+  // Build last 28 days grouped by week (Mon–Sun)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // Find most recent Sunday as end anchor
+  const days = []
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(today.getDate() - i)
+    days.push(d.toISOString().slice(0, 10))
+  }
+
+  // Pad front so first day is Monday
+  const firstDow = new Date(days[0] + 'T12:00:00').getDay() // 0=Sun
+  const leadingEmpty = firstDow === 0 ? 6 : firstDow - 1
+  const paddedDays = [...Array(leadingEmpty).fill(null), ...days]
+
+  // Split into weeks
+  const weeks = []
+  for (let i = 0; i < paddedDays.length; i += 7) {
+    weeks.push(paddedDays.slice(i, i + 7))
+  }
+
+  const DOW = ['一', '二', '三', '四', '五', '六', '日']
+  const todayStr = today.toISOString().slice(0, 10)
+
+  function cellColor(dateStr) {
+    if (!dateStr) return 'transparent'
+    if (dateStr > todayStr) return 'var(--bg-surface)'
+    const count = usageByDate[dateStr] || 0
+    if (count === 0) return 'var(--bg-surface)'
+    if (count <= 1) return '#D4E4CC'
+    if (count <= 3) return '#AECBB8'
+    if (count <= 5) return '#7AAA8A'
+    return '#4E8A60'
+  }
+
+  function cellBorder(dateStr) {
+    if (!dateStr || dateStr > todayStr) return '0.5px solid transparent'
+    const count = usageByDate[dateStr] || 0
+    if (count === 0) return '0.5px solid var(--border-soft)'
+    return '0.5px solid transparent'
+  }
+
+  return (
+    <div>
+      {/* Day labels */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 6 }}>
+        {DOW.map(d => (
+          <div key={d} style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>{d}</div>
+        ))}
+      </div>
+      {/* Grid */}
+      {weeks.map((week, wi) => (
+        <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+          {week.map((dateStr, di) => {
+            const isToday = dateStr === todayStr
+            return (
+              <div key={di} style={{
+                aspectRatio: '1',
+                borderRadius: 6,
+                background: cellColor(dateStr),
+                border: isToday ? '1.5px solid #7AAA6A' : cellBorder(dateStr),
+                position: 'relative',
+              }} />
+            )
+          })}
+        </div>
+      ))}
+      {/* Legend */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>少</span>
+        {['var(--bg-surface)', '#D4E4CC', '#AECBB8', '#7AAA8A', '#4E8A60'].map((c, i) => (
+          <div key={i} style={{ width: 12, height: 12, borderRadius: 3, background: c, border: '0.5px solid var(--border-soft)' }} />
+        ))}
+        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>多</span>
+      </div>
+    </div>
+  )
+}
+
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
@@ -57,13 +148,19 @@ export default function ProfilePage({ store }) {
         </div>
       </Section>
 
+      {/* Habit tracker */}
+      <Section title="保養勤勞度（近 28 天）">
+        <div className="card" style={{ padding: '14px' }}>
+          <HabitTracker products={products} />
+        </div>
+      </Section>
+
       {/* Overview */}
       <Section title="目前設定">
         <div className="card" style={{ padding: '12px 14px' }}>
           {[
             { label: '保養品總數', count: products.length, emoji: '🧴' },
-            { label: '設定早上步驟', count: products.filter(p => p.dayOrder !== null && p.dayOrder !== undefined).length, emoji: '🌤' },
-            { label: '設定晚上步驟', count: products.filter(p => p.nightOrder !== null && p.nightOrder !== undefined).length, emoji: '🌙' },
+            { label: '保養組別數', count: (state.routineGroups || []).length, emoji: '🌸' },
           ].map((item, i, arr) => (
             <div key={item.label} style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
