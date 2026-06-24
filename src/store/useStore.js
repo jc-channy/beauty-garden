@@ -173,6 +173,7 @@ function groupToRow(g, userId) {
     id: g.id,
     user_id: userId,
     name: g.name,
+    notes: g.notes || '',
     day_items: g.dayItems,
     night_items: g.nightItems,
     sort_order: g.sortOrder,
@@ -315,6 +316,7 @@ export function useStore(userId) {
         const updated = { ...g, ...patch }
         const row = {}
         if (patch.name !== undefined) row.name = patch.name
+        if (patch.notes !== undefined) row.notes = patch.notes
         if (patch.dayItems !== undefined) row.day_items = patch.dayItems
         if (patch.nightItems !== undefined) row.night_items = patch.nightItems
         supabase.from('routine_groups').update(row).eq('id', id)
