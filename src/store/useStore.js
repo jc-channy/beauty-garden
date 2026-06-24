@@ -236,7 +236,13 @@ export function useStore(userId) {
       ...product,
     }
     setState(prev => ({ ...prev, products: [...prev.products, newProduct] }))
-    supabase.from('products').insert(productToRow(newProduct, userId))
+    const { error } = await supabase.from('products').insert(productToRow(newProduct, userId))
+    if (error) {
+      console.error('Insert failed:', error)
+      alert(`儲存失敗：${error.message}`)
+      // Roll back local state
+      setState(prev => ({ ...prev, products: prev.products.filter(p => p.id !== newProduct.id) }))
+    }
   }, [userId])
 
   const updateProduct = useCallback((id, patch) => {
