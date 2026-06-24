@@ -159,7 +159,7 @@ function ProductFormModal({ product, products, onClose, onSave }) {
   })
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '92vh', overflowY: 'auto' }}>
         <div className="modal-handle" />
         <h3 style={{ fontSize: 17, fontWeight: 500, marginBottom: 18 }}>

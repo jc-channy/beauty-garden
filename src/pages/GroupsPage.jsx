@@ -75,7 +75,7 @@ function DraggableList({ items, renderItem, onReorder }) {
 function ProductPicker({ products, excludeIds, onAdd, onClose }) {
   const available = products.filter(p => !excludeIds.has(p.id))
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal-handle" />
         <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 14 }}>選擇保養品</div>
@@ -328,13 +328,12 @@ function NewGroupModal({ onClose, onAdd }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>新增保養組別</div>
         <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>組別名稱</label>
         <input
-          autoFocus
           type="text"
           value={name}
           onChange={e => setName(e.target.value)}
