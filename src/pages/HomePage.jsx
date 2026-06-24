@@ -133,9 +133,8 @@ export default function HomePage({ store, onManageGroups }) {
   const [selectedGroupId, setSelectedGroupId] = React.useState(null)
 
   const groups = routineGroups || []
-  const todayDow = new Date().getDay() // 0=Sun…6=Sat
+  const todayDow = new Date().getDay()
 
-  // Auto-select: find group assigned to today, else groups[0]
   const autoGroupId = React.useMemo(() => {
     const match = groups.find(g => (groupDays[g.id] || []).includes(todayDow))
     return match?.id ?? groups[0]?.id ?? null
@@ -148,7 +147,6 @@ export default function HomePage({ store, onManageGroups }) {
     products.filter(p => (p.usageLog || []).includes(today)).map(p => p.id)
   )
 
-  // Resolve products in order for the selected group
   function resolveItems(ids) {
     return (ids || []).map(id => products.find(p => p.id === id)).filter(Boolean)
   }
@@ -159,6 +157,7 @@ export default function HomePage({ store, onManageGroups }) {
   const allGroupProductIds = new Set([...amProducts, ...pmProducts].map(p => p.id))
   const doneRoutine = [...allGroupProductIds].filter(id => usedTodaySet.has(id)).length
   const totalRoutine = allGroupProductIds.size
+  const allDone = totalRoutine > 0 && doneRoutine === totalRoutine
 
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 22 }}>
@@ -177,7 +176,7 @@ export default function HomePage({ store, onManageGroups }) {
         )}
       </div>
 
-      {/* Group switcher */}
+      {/* [Fix 3] Group switcher — 管理 text button replacing tiny ⚙ */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
         <div style={{
           flex: 1, display: 'flex', gap: 6, overflowX: 'auto',
@@ -216,44 +215,17 @@ export default function HomePage({ store, onManageGroups }) {
             })
           )}
         </div>
-        {/* Manage button */}
+        {/* [Fix 3] Text button instead of 30px gear */}
         <button
           onClick={onManageGroups}
           style={{
-            flexShrink: 0, width: 30, height: 30, borderRadius: '50%',
+            flexShrink: 0, padding: '6px 12px', borderRadius: 20,
             background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
-            cursor: 'pointer', fontSize: 15, color: 'var(--text-muted)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)',
+            whiteSpace: 'nowrap',
           }}
-          title="管理組別"
-        >⚙</button>
+        >管理</button>
       </div>
-
-      {/* Stats */}
-      {groups.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-          {[
-            { num: `${doneRoutine}/${totalRoutine}`, label: '今日完成', unit: '' },
-            { num: streak, label: '連續天數', unit: '天' },
-            { num: `${monthlyRate}%`, label: '本月完成率', unit: '' },
-          ].map(item => (
-            <div key={item.label} style={{
-              flex: 1,
-              background: 'var(--bg-card)',
-              borderRadius: 14,
-              border: '0.5px solid var(--border-soft)',
-              padding: '11px 8px',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)' }}>
-                {item.num}
-                {item.unit && <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 1 }}>{item.unit}</span>}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{item.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Group notes */}
       {selectedGroup?.notes && (
@@ -267,7 +239,7 @@ export default function HomePage({ store, onManageGroups }) {
         </div>
       )}
 
-      {/* No products at all */}
+      {/* [Fix 1] No products at all */}
       {products.length === 0 && (
         <div style={{ textAlign: 'center', padding: '52px 0' }}>
           <div style={{ fontSize: 40, marginBottom: 14 }}>🌿</div>
@@ -275,23 +247,39 @@ export default function HomePage({ store, onManageGroups }) {
             還沒有任何保養品
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            到下方「產品」頁面新增你的第一瓶<br />
-            再來這裡建立組別安排順序
+            到下方「產品」頁面新增你的第一瓶
           </div>
         </div>
       )}
 
-      {/* No group selected / no groups */}
+      {/* [Fix 1] Has products but no groups — guided card */}
       {products.length > 0 && groups.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>🌸</div>
-          <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 6 }}>
-            還沒有保養組別
+        <div style={{
+          background: 'var(--bg-card)',
+          borderRadius: 18,
+          border: '0.5px solid var(--border-soft)',
+          padding: '20px 18px',
+          marginBottom: 20,
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>🌸</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>
+            你有 {products.length} 個保養品了！
           </div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            點上方「建立第一個組別」<br />
-            設定早晚保養順序
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 16 }}>
+            建立一個保養組別，設定早晚順序<br />
+            就能在這裡一鍵打卡 ✓
           </div>
+          <button
+            onClick={onManageGroups}
+            style={{
+              padding: '11px 28px', borderRadius: 14, border: 'none',
+              background: '#D7DFD2', color: '#3A6A30',
+              fontSize: 14, fontWeight: 500, cursor: 'pointer',
+            }}
+          >
+            立即建立保養流程 →
+          </button>
         </div>
       )}
 
@@ -313,6 +301,55 @@ export default function HomePage({ store, onManageGroups }) {
             emptyMsg="這個組別還沒有設定晚上步驟"
           />
         </>
+      )}
+
+      {/* [Fix 5] All-done completion banner */}
+      {allDone && (
+        <div style={{
+          background: '#EEF4EC',
+          border: '0.5px solid #C0D8B8',
+          borderRadius: 16,
+          padding: '14px 18px',
+          textAlign: 'center',
+          marginBottom: 16,
+          animation: 'fadeIn 0.4s ease',
+        }}>
+          <div style={{ fontSize: 22, marginBottom: 4 }}>🌿</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: '#3A6A30' }}>
+            今天的保養完成了
+          </div>
+          {streak > 1 && (
+            <div style={{ fontSize: 12, color: '#5A8A50', marginTop: 4 }}>
+              連續 {streak} 天，繼續保持 ✦
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* [Fix 2] Stats — moved below checklist */}
+      {groups.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          {[
+            { num: `${doneRoutine}/${totalRoutine}`, label: '今日完成', unit: '' },
+            { num: streak, label: '連續天數', unit: '天' },
+            { num: `${monthlyRate}%`, label: '本月完成率', unit: '' },
+          ].map(item => (
+            <div key={item.label} style={{
+              flex: 1,
+              background: 'var(--bg-card)',
+              borderRadius: 14,
+              border: '0.5px solid var(--border-soft)',
+              padding: '11px 8px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)' }}>
+                {item.num}
+                {item.unit && <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 1 }}>{item.unit}</span>}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{item.label}</div>
+            </div>
+          ))}
+        </div>
       )}
 
       <div style={{ height: 8 }} />

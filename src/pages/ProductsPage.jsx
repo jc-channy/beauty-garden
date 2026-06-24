@@ -100,6 +100,9 @@ function FrequencyPicker({ form, setForm }) {
 function ProductFormModal({ product, products, onClose, onSave }) {
   const isEdit = Boolean(product)
   const fileRef = useRef()
+  // [Fix 4] Advanced section collapsed by default for new products; open if editing and has data
+  const hasAdvancedData = isEdit && ((product?.effects?.length > 0) || product?.frequencyMode !== 'daily')
+  const [showAdvanced, setShowAdvanced] = useState(hasAdvancedData)
 
   const [form, setForm] = useState({
     nickname:      product?.nickname      || '',
@@ -208,17 +211,46 @@ function ProductFormModal({ product, products, onClose, onSave }) {
           ))}
         </div>
 
-        {/* Effects */}
-        <label style={sectionLabel}>功效（可多選）</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 16 }}>
-          {EFFECTS.map(e => (
-            <button key={e} onClick={() => toggleEffect(e)} style={chipBtn(form.effects.includes(e))}>
-              {e}
-            </button>
-          ))}
-        </div>
+        {/* [Fix 4] Advanced settings — collapsed by default */}
+        <button
+          onClick={() => setShowAdvanced(s => !s)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: '8px 0', marginBottom: showAdvanced ? 14 : 20,
+            color: 'var(--text-muted)', fontSize: 13,
+          }}
+        >
+          <span style={{
+            display: 'inline-block', transition: 'transform 0.2s',
+            transform: showAdvanced ? 'rotate(90deg)' : 'none', fontSize: 11,
+          }}>▶</span>
+          進階設定（功效、使用頻率）
+          {form.effects.length > 0 && (
+            <span style={{ fontSize: 11, background: '#F2E6D9', color: '#8A6A40', borderRadius: 8, padding: '1px 7px', marginLeft: 2 }}>
+              {form.effects.length} 項
+            </span>
+          )}
+          {form.frequencyMode !== 'daily' && (
+            <span style={{ fontSize: 11, background: '#EEF4EC', color: '#5A7A52', borderRadius: 8, padding: '1px 7px' }}>
+              自訂頻率
+            </span>
+          )}
+        </button>
 
-        <FrequencyPicker form={form} setForm={setForm} />
+        {showAdvanced && (
+          <>
+            <label style={sectionLabel}>功效（可多選）</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 16 }}>
+              {EFFECTS.map(e => (
+                <button key={e} onClick={() => toggleEffect(e)} style={chipBtn(form.effects.includes(e))}>
+                  {e}
+                </button>
+              ))}
+            </div>
+            <FrequencyPicker form={form} setForm={setForm} />
+          </>
+        )}
 
         <button className="btn-primary" onClick={handleSave} disabled={!canSave}
           style={{ opacity: canSave ? 1 : 0.5 }}>
