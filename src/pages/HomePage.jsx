@@ -157,7 +157,10 @@ export default function HomePage({ store, onManageGroups }) {
 
   const autoGroupId = React.useMemo(() => {
     const match = groups.find(g => (groupDays[g.id] || []).includes(todayDow))
-    return match?.id ?? groups[0]?.id ?? null
+    if (match) return match.id
+    // Only fallback to first group if no group has any day assignments (new user setup)
+    const anyConfigured = groups.some(g => (groupDays[g.id] || []).length > 0)
+    return anyConfigured ? null : (groups[0]?.id ?? null)
   }, [groups, groupDays, todayDow])
 
   const effectiveGroupId = selectedGroupId ?? autoGroupId

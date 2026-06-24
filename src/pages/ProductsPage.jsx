@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { getWeeklyProgress, todayKey, CATEGORIES, EFFECTS, CATEGORY_COLORS } from '../store/useStore.js'
+import { todayKey, CATEGORIES, EFFECTS, CATEGORY_COLORS, EFFECT_COLORS } from '../store/useStore.js'
 
 const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -100,21 +100,15 @@ function FrequencyPicker({ form, setForm }) {
 function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
   const isEdit = Boolean(product)
   const fileRef = useRef()
-  // [Fix 4] Advanced section collapsed by default for new products; open if editing and has data
-  const hasAdvancedData = isEdit && ((product?.effects?.length > 0) || product?.frequencyMode !== 'daily')
-  const [showAdvanced, setShowAdvanced] = useState(hasAdvancedData)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const [form, setForm] = useState({
-    nickname:      product?.nickname      || '',
-    brand:         product?.brand         || '',
-    name:          product?.name          || '',
-    category:      product?.category      || '',
-    effects:       product?.effects       || [],
-    frequencyMode: product?.frequencyMode || 'daily',
-    targetDays:    product?.targetDays    || [],
-    timesPerWeek:  product?.timesPerWeek  || 3,
-    imagePreview:  product?.imagePreview  || null,
+    nickname:     product?.nickname     || '',
+    brand:        product?.brand        || '',
+    name:         product?.name         || '',
+    category:     product?.category     || '',
+    effects:      product?.effects      || [],
+    imagePreview: product?.imagePreview || null,
   })
 
   async function handleFile(file) {
@@ -135,15 +129,12 @@ function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
     if (!displayName.trim()) return
 
     onSave({
-      nickname:      form.nickname,
-      brand:         form.brand,
-      name:          form.name,
-      category:      form.category,
-      effects:       form.effects,
-      frequencyMode: form.frequencyMode,
-      targetDays:    form.targetDays,
-      timesPerWeek:  form.timesPerWeek,
-      imagePreview:  form.imagePreview,
+      nickname:     form.nickname,
+      brand:        form.brand,
+      name:         form.name,
+      category:     form.category,
+      effects:      form.effects,
+      imagePreview: form.imagePreview,
     })
     onClose()
   }
@@ -212,46 +203,15 @@ function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
           ))}
         </div>
 
-        {/* [Fix 4] Advanced settings — collapsed by default */}
-        <button
-          onClick={() => setShowAdvanced(s => !s)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6, width: '100%',
-            background: 'none', border: 'none', cursor: 'pointer',
-            padding: '8px 0', marginBottom: showAdvanced ? 14 : 20,
-            color: 'var(--text-muted)', fontSize: 13,
-          }}
-        >
-          <span style={{
-            display: 'inline-block', transition: 'transform 0.2s',
-            transform: showAdvanced ? 'rotate(90deg)' : 'none', fontSize: 11,
-          }}>▶</span>
-          進階設定（功效、使用頻率）
-          {form.effects.length > 0 && (
-            <span style={{ fontSize: 11, background: '#F2E6D9', color: '#8A6A40', borderRadius: 8, padding: '1px 7px', marginLeft: 2 }}>
-              {form.effects.length} 項
-            </span>
-          )}
-          {form.frequencyMode !== 'daily' && (
-            <span style={{ fontSize: 11, background: '#EEF4EC', color: '#5A7A52', borderRadius: 8, padding: '1px 7px' }}>
-              自訂頻率
-            </span>
-          )}
-        </button>
-
-        {showAdvanced && (
-          <>
-            <label style={sectionLabel}>功效（可多選）</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 16 }}>
-              {EFFECTS.map(e => (
-                <button key={e} onClick={() => toggleEffect(e)} style={chipBtn(form.effects.includes(e))}>
-                  {e}
-                </button>
-              ))}
-            </div>
-            <FrequencyPicker form={form} setForm={setForm} />
-          </>
-        )}
+        {/* Effects */}
+        <label style={sectionLabel}>功效（可多選）</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 20 }}>
+          {EFFECTS.map(e => (
+            <button key={e} onClick={() => toggleEffect(e)} style={chipBtn(form.effects.includes(e))}>
+              {e}
+            </button>
+          ))}
+        </div>
 
         <button className="btn-primary" onClick={handleSave} disabled={!canSave}
           style={{ opacity: canSave ? 1 : 0.5 }}>
@@ -305,7 +265,6 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
   const [showEdit, setShowEdit] = useState(false)
 
   const today = todayKey()
-  const progress = getWeeklyProgress(product)
 
   const displayName = product.nickname || product.name || product.brand || '未命名'
   const subLine = product.nickname
@@ -332,30 +291,34 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              {/* Nickname (primary) */}
-              <div style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 2 }}>
-                {displayName}
+              {/* Category chip + Nickname on same line */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
+                {product.category && (() => {
+                  const c = CATEGORY_COLORS[product.category] || { bg: '#EEE', text: '#666' }
+                  return <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, flexShrink: 0 }}>{product.category}</span>
+                })()}
+                <span style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                  {displayName}
+                </span>
               </div>
               {/* Brand · name (secondary) */}
               {subLine && (
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 5 }}>{subLine}</div>
               )}
-              {/* Tags */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                {product.category && (() => {
-                  const c = CATEGORY_COLORS[product.category] || { bg: '#EEE', text: '#666' }
-                  return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500 }}>{product.category}</span>
-                })()}
-                {(product.effects || []).slice(0, 3).map(e => (
-                  <span key={e} style={{
-                    fontSize: 11, padding: '2px 8px', borderRadius: 6,
-                    background: '#EEF4EC', color: '#5A7A52',
-                  }}>{e}</span>
-                ))}
-                {(product.effects || []).length > 3 && (
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>+{product.effects.length - 3}</span>
-                )}
-              </div>
+              {/* Effect tags with individual colors */}
+              {(product.effects || []).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                  {(product.effects || []).slice(0, 3).map(e => {
+                    const ec = EFFECT_COLORS[e] || { bg: '#EEF4EC', text: '#5A7A52' }
+                    return (
+                      <span key={e} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 6, background: ec.bg, color: ec.text }}>{e}</span>
+                    )
+                  })}
+                  {(product.effects || []).length > 3 && (
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>+{product.effects.length - 3}</span>
+                  )}
+                </div>
+              )}
             </div>
             <button onClick={() => setShowEdit(true)} style={{
               background: 'none', border: 'none', cursor: 'pointer',
@@ -365,29 +328,6 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
             }}>✎</button>
           </div>
 
-          {/* Week dots */}
-          <div style={{ display: 'flex', gap: 3, marginTop: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 2 }}>本週</span>
-            {progress.weekDates.map((date, i) => {
-              const used = (product.usageLog || []).includes(date)
-              const isToday = date === today
-              const isFuture = date > today
-              return (
-                <div key={date} style={{
-                  width: 20, height: 20, borderRadius: '50%', fontSize: 11,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: used ? '#C8D8C0' : isFuture ? 'transparent' : '#EEE8E2',
-                  border: isToday ? '1.5px solid #C8A87A' : '1px solid transparent',
-                  color: used ? '#5A7A52' : '#C4B0A0', flexShrink: 0,
-                }}>
-                  {['一','二','三','四','五','六','日'][i]}
-                </div>
-              )
-            })}
-            {progress.completed && (
-              <span style={{ fontSize: 11, color: '#5A7A52', marginLeft: 3 }}>🌸 達標</span>
-            )}
-          </div>
         </div>
       </div>
 

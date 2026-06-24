@@ -77,16 +77,24 @@ function MainApp({ userId }) {
     return <MakeupPage onBack={() => setShowMakeup(false)} />
   }
 
+  function handleTabChange(newTab) {
+    if (newTab === 'makeup') {
+      setShowMakeup(true)
+    } else {
+      setTab(newTab)
+    }
+  }
+
   const pages = {
     home:     <HomePage     store={store} onManageGroups={() => setShowGroups(true)} />,
     products: <ProductsPage store={store} />,
-    profile:  <ProfilePage  store={store} onOpenMakeup={() => setShowMakeup(true)} />,
+    profile:  <ProfilePage  store={store} />,
   }
 
   return (
     <>
       {pages[tab]}
-      <TabBar current={tab} onChange={setTab} />
+      <TabBar current={tab} onChange={handleTabChange} />
     </>
   )
 }

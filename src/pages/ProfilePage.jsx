@@ -163,7 +163,7 @@ function Section({ title, children }) {
   )
 }
 
-export default function ProfilePage({ store, onOpenMakeup }) {
+export default function ProfilePage({ store }) {
   const { state, updateSettings } = store
   const { settings, products } = state
 
@@ -238,27 +238,6 @@ export default function ProfilePage({ store, onOpenMakeup }) {
         </div>
       </Section>
 
-      {/* [Fix 8] Makeup reference entry */}
-      {onOpenMakeup && (
-        <Section title="工具">
-          <button
-            onClick={onOpenMakeup}
-            className="card"
-            style={{
-              width: '100%', padding: '14px 16px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left',
-              border: '0.5px solid var(--border-soft)',
-            }}
-          >
-            <span style={{ fontSize: 22 }}>✿</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>化妝順序參考</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>完整版 · 精簡版 · 約會版</div>
-            </div>
-            <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>›</span>
-          </button>
-        </Section>
-      )}
 
       {/* User name */}
       <Section title="個人設定">

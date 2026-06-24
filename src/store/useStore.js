@@ -127,6 +127,27 @@ export const EFFECTS = [
   '抗氧化','控油','抗痘','毛孔','去角質','黑眼圈','消腫','敏弱肌修護','術後修護',
 ]
 
+export const EFFECT_COLORS = {
+  '保濕':     { bg: '#C1DBDF', text: '#2A6878' },
+  '補水':     { bg: '#B8D8E4', text: '#1E6080' },
+  '修護':     { bg: '#AECBB8', text: '#2E6647' },
+  '舒緩':     { bg: '#D4E4CC', text: '#3A5E30' },
+  '抗老':     { bg: '#C8B3CA', text: '#5A2E6A' },
+  '緊緻':     { bg: '#D4AABE', text: '#7A2840' },
+  '美白':     { bg: '#F2E8B4', text: '#6A5010' },
+  '淡斑':     { bg: '#F8C467', text: '#7A4E10' },
+  '提亮':     { bg: '#F8DDCD', text: '#8A4030' },
+  '抗氧化':   { bg: '#E8D4C0', text: '#7A4A28' },
+  '控油':     { bg: '#D4E4CC', text: '#3A5E30' },
+  '抗痘':     { bg: '#F79E70', text: '#7A3010' },
+  '毛孔':     { bg: '#E89B88', text: '#7A2818' },
+  '去角質':   { bg: '#F8C467', text: '#7A4E10' },
+  '黑眼圈':   { bg: '#C8B3CA', text: '#5A2E6A' },
+  '消腫':     { bg: '#C1DBDF', text: '#2A6878' },
+  '敏弱肌修護': { bg: '#D4E4CC', text: '#3A5E30' },
+  '術後修護': { bg: '#E8D4C0', text: '#7A4A28' },
+}
+
 // ── Data model ────────────────────────────────────────────────
 // Product: { id, nickname, brand, name, category, effects, frequencyMode, targetDays, timesPerWeek, usageLog, imagePreview, addedAt }
 // RoutineGroup: { id, name, dayItems: string[], nightItems: string[], sortOrder }

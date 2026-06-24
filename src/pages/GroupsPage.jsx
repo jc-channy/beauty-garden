@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { CATEGORY_COLORS } from '../store/useStore.js'
 
 // ── Draggable list ────────────────────────────────────────────
@@ -6,43 +6,62 @@ function DraggableList({ items, renderItem, onReorder }) {
   const [dragIndex, setDragIndex] = useState(null)
   const [overIndex, setOverIndex] = useState(null)
   const listRef = useRef(null)
-  const itemHeightsRef = useRef([])
+  // Refs to avoid stale closures in non-React event listeners
+  const dragStateRef = useRef({ dragIndex: null, overIndex: null })
+  const itemsRef = useRef(items)
+  const onReorderRef = useRef(onReorder)
+  useEffect(() => { itemsRef.current = items }, [items])
+  useEffect(() => { onReorderRef.current = onReorder }, [onReorder])
 
   function getIndexFromY(clientY) {
-    const rects = Array.from(listRef.current?.children || []).map(el => el.getBoundingClientRect())
-    for (let i = 0; i < rects.length; i++) {
-      if (clientY < rects[i].bottom) return i
+    const children = Array.from(listRef.current?.children || [])
+    for (let i = 0; i < children.length; i++) {
+      if (clientY < children[i].getBoundingClientRect().bottom) return i
     }
-    return rects.length - 1
+    return Math.max(0, children.length - 1)
   }
 
   function handleTouchStart(e, index) {
     e.stopPropagation()
+    dragStateRef.current = { dragIndex: index, overIndex: index }
     setDragIndex(index)
     setOverIndex(index)
   }
 
-  function handleTouchMove(e) {
-    if (dragIndex === null) return
-    e.preventDefault()
-    const touch = e.touches[0]
-    const idx = getIndexFromY(touch.clientY)
-    setOverIndex(idx)
-  }
-
-  function handleTouchEnd() {
-    if (dragIndex !== null && overIndex !== null && dragIndex !== overIndex) {
-      const newItems = [...items]
-      const [moved] = newItems.splice(dragIndex, 1)
-      newItems.splice(overIndex, 0, moved)
-      onReorder(newItems)
+  // Attach touchmove as non-passive so e.preventDefault() stops page scroll during drag
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    function onTouchMove(e) {
+      if (dragStateRef.current.dragIndex === null) return
+      e.preventDefault()
+      const touch = e.touches[0]
+      const idx = getIndexFromY(touch.clientY)
+      dragStateRef.current.overIndex = idx
+      setOverIndex(idx)
     }
-    setDragIndex(null)
-    setOverIndex(null)
-  }
+    function onTouchEnd() {
+      const { dragIndex: di, overIndex: oi } = dragStateRef.current
+      if (di !== null && oi !== null && di !== oi) {
+        const next = [...itemsRef.current]
+        const [moved] = next.splice(di, 1)
+        next.splice(oi, 0, moved)
+        onReorderRef.current(next)
+      }
+      dragStateRef.current = { dragIndex: null, overIndex: null }
+      setDragIndex(null)
+      setOverIndex(null)
+    }
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    return () => {
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
 
   return (
-    <div ref={listRef} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+    <div ref={listRef}>
       {items.map((item, index) => {
         const isDragging = dragIndex === index
         const isOver = overIndex === index && dragIndex !== null && dragIndex !== index
@@ -54,7 +73,6 @@ function DraggableList({ items, renderItem, onReorder }) {
             transition: 'opacity 0.15s',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0' }}>
-              {/* Drag handle */}
               <div
                 onTouchStart={e => handleTouchStart(e, index)}
                 style={{
@@ -79,7 +97,13 @@ function ProductPicker({ products, excludeIds, onAdd, onClose }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal-handle" />
-        <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 14 }}>選擇保養品</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontSize: 15, fontWeight: 500 }}>選擇保養品</div>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 20, color: 'var(--text-muted)', padding: '0 4px', lineHeight: 1,
+          }}>✕</button>
+        </div>
         {available.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: 13 }}>
             所有產品已加入
@@ -90,7 +114,7 @@ function ProductPicker({ products, excludeIds, onAdd, onClose }) {
               const name = p.nickname || p.name || p.brand || '未命名'
               const sub = p.nickname ? [p.brand, p.name].filter(Boolean).join(' · ') : ''
               return (
-                <div key={p.id} onClick={() => { onAdd(p.id); onClose() }} style={{
+                <div key={p.id} onClick={() => onAdd(p.id)} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 2px', borderBottom: '0.5px solid var(--border-soft)',
                   cursor: 'pointer',
