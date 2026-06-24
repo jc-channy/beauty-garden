@@ -173,6 +173,7 @@ function groupToRow(g, userId) {
     id: g.id,
     user_id: userId,
     name: g.name,
+    notes: g.notes || '',
     day_items: g.dayItems,
     night_items: g.nightItems,
     sort_order: g.sortOrder,
