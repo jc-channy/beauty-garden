@@ -128,6 +128,7 @@ function GroupCard({ group, products, onUpdate, onDelete, groupDays, setGroupTar
   const [nameVal, setNameVal] = useState(group.name)
   const [notesVal, setNotesVal] = useState(group.notes || '')
   const [picker, setPicker] = useState(null) // 'day' | 'night' | null
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   function resolveItems(ids) {
     return (ids || []).map(id => products.find(p => p.id === id)).filter(Boolean)
@@ -268,20 +269,36 @@ function GroupCard({ group, products, onUpdate, onDelete, groupDays, setGroupTar
           </div>
 
           {/* Group actions */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-            <button onClick={() => { setEditing(true); setExpanded(true) }} style={{
-              flex: 1, padding: '8px 0', borderRadius: 10,
-              background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
-              fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer',
-            }}>✎ 編輯名稱</button>
-            <button onClick={() => {
-              if (confirm(`確定要刪除「${group.name}」？`)) onDelete(group.id)
-            }} style={{
-              flex: 1, padding: '8px 0', borderRadius: 10,
-              background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
-              fontSize: 13, color: '#C06060', cursor: 'pointer',
-            }}>✕ 刪除組別</button>
-          </div>
+          {!confirmDelete ? (
+            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+              <button onClick={() => { setEditing(true); setExpanded(true) }} style={{
+                flex: 1, padding: '8px 0', borderRadius: 10,
+                background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
+                fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer',
+              }}>✎ 編輯名稱</button>
+              <button onClick={() => setConfirmDelete(true)} style={{
+                flex: 1, padding: '8px 0', borderRadius: 10,
+                background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
+                fontSize: 13, color: '#C06060', cursor: 'pointer',
+              }}>✕ 刪除組別</button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 6, padding: '10px 12px', background: '#FFF5F5', borderRadius: 10, border: '0.5px solid #E8C0C0' }}>
+              <div style={{ fontSize: 13, color: '#7A3030', marginBottom: 8 }}>確定要刪除「{group.name}」？</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => onDelete(group.id)} style={{
+                  flex: 1, padding: '7px 0', borderRadius: 8,
+                  background: '#C06060', border: 'none', color: '#fff',
+                  fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                }}>確認刪除</button>
+                <button onClick={() => setConfirmDelete(false)} style={{
+                  flex: 1, padding: '7px 0', borderRadius: 8,
+                  background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
+                  fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer',
+                }}>取消</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

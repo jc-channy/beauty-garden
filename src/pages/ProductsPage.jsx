@@ -103,6 +103,7 @@ function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
   // [Fix 4] Advanced section collapsed by default for new products; open if editing and has data
   const hasAdvancedData = isEdit && ((product?.effects?.length > 0) || product?.frequencyMode !== 'daily')
   const [showAdvanced, setShowAdvanced] = useState(hasAdvancedData)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const [form, setForm] = useState({
     nickname:      product?.nickname      || '',
@@ -257,14 +258,9 @@ function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
           {isEdit ? '儲存' : '加入產品'}
         </button>
 
-        {isEdit && onDelete && (
+        {isEdit && onDelete && !showDeleteConfirm && (
           <button
-            onClick={() => {
-              if (confirm(`確定要刪除「${product.nickname || product.name || '此產品'}」？`)) {
-                onDelete(product.id)
-                onClose()
-              }
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
             style={{
               marginTop: 10, width: '100%', padding: '11px 0', borderRadius: 14,
               background: 'none', border: '0.5px solid #E8C0C0',
@@ -273,6 +269,31 @@ function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
           >
             刪除產品
           </button>
+        )}
+        {showDeleteConfirm && (
+          <div style={{ marginTop: 10, padding: '12px 14px', background: '#FFF5F5', borderRadius: 14, border: '0.5px solid #E8C0C0' }}>
+            <div style={{ fontSize: 13, color: '#7A3030', marginBottom: 10, textAlign: 'center' }}>
+              確定要刪除「{product.nickname || product.name || '此產品'}」？
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => { onDelete(product.id); onClose() }}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 12,
+                  background: '#C06060', border: 'none', color: '#fff',
+                  fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                }}
+              >確認刪除</button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 12,
+                  background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
+                  fontSize: 14, color: 'var(--text-muted)', cursor: 'pointer',
+                }}
+              >取消</button>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase.js'
 
 // ── Date helpers ──────────────────────────────────────────────
@@ -199,6 +199,8 @@ function groupToRow(g, userId) {
 export function useStore(userId) {
   const [state, setState] = useState(INITIAL_STATE)
   const [loading, setLoading] = useState(true)
+  // Track in-flight mutations so visibilitychange doesn't overwrite optimistic state
+  const mutating = useRef(0)
 
   // groupDays: { [groupId]: number[] } — stored in localStorage (bypasses schema cache issue)
   const [groupDays, setGroupDaysState] = useState(() => {
@@ -217,17 +219,20 @@ export function useStore(userId) {
   }, [userId])
 
   // Re-fetch when tab becomes visible again (cross-device sync)
+  // Skip if a mutation is in-flight to avoid overwriting optimistic state
   useEffect(() => {
     if (!userId) return
     function handleVisibility() {
-      if (document.visibilityState === 'visible') loadData()
+      if (document.visibilityState === 'visible' && mutating.current === 0) {
+        loadData({ silent: true })
+      }
     }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [userId])
 
-  async function loadData() {
-    setLoading(true)
+  async function loadData({ silent = false } = {}) {
+    if (!silent) setLoading(true)
     try {
       const [
         { data: productRows },
@@ -255,7 +260,7 @@ export function useStore(userId) {
     } catch (e) {
       console.error('Load error:', e)
     }
-    setLoading(false)
+    if (!silent) setLoading(false)
   }
 
   // ── Products ───────────────────────────────────────────────
@@ -304,33 +309,58 @@ export function useStore(userId) {
     }
   }, [userId])
 
-  const updateProduct = useCallback((id, patch) => {
+  const updateProduct = useCallback(async (id, patch) => {
+    let prevProducts = null
     setState(prev => {
-      const products = prev.products.map(p => {
-        if (p.id !== id) return p
-        const updated = { ...p, ...patch }
-        supabase.from('products').update(productToRow(updated, userId)).eq('id', id)
-        return updated
-      })
-      return { ...prev, products }
+      prevProducts = prev.products
+      return { ...prev, products: prev.products.map(p => p.id === id ? { ...p, ...patch } : p) }
     })
+    mutating.current++
+    try {
+      const base = prevProducts?.find(p => p.id === id)
+      if (base) {
+        const { error } = await supabase.from('products').update(productToRow({ ...base, ...patch }, userId)).eq('id', id)
+        if (error) throw error
+      }
+    } catch (e) {
+      console.error('Update product failed:', e)
+      if (prevProducts) setState(prev => ({ ...prev, products: prevProducts }))
+    } finally {
+      mutating.current--
+    }
   }, [userId])
 
-  const deleteProduct = useCallback((id) => {
-    // Also remove from all groups
+  const deleteProduct = useCallback(async (id) => {
+    let prevState = null
     setState(prev => {
-      const groups = prev.routineGroups.map(g => {
-        const updated = {
-          ...g,
-          dayItems: g.dayItems.filter(pid => pid !== id),
-          nightItems: g.nightItems.filter(pid => pid !== id),
-        }
-        supabase.from('routine_groups').update({ day_items: updated.dayItems, night_items: updated.nightItems }).eq('id', g.id)
-        return updated
-      })
-      return { ...prev, products: prev.products.filter(p => p.id !== id), routineGroups: groups }
+      prevState = prev
+      const routineGroups = prev.routineGroups.map(g => ({
+        ...g,
+        dayItems: g.dayItems.filter(pid => pid !== id),
+        nightItems: g.nightItems.filter(pid => pid !== id),
+      }))
+      return { ...prev, products: prev.products.filter(p => p.id !== id), routineGroups }
     })
-    supabase.from('products').delete().eq('id', id)
+    mutating.current++
+    try {
+      // Groups that referenced this product need updating
+      const affectedGroups = (prevState?.routineGroups || []).filter(g =>
+        g.dayItems.includes(id) || g.nightItems.includes(id)
+      )
+      const { error } = await supabase.from('products').delete().eq('id', id)
+      if (error) throw error
+      await Promise.all(affectedGroups.map(g =>
+        supabase.from('routine_groups').update({
+          day_items: g.dayItems.filter(pid => pid !== id),
+          night_items: g.nightItems.filter(pid => pid !== id),
+        }).eq('id', g.id)
+      ))
+    } catch (e) {
+      console.error('Delete product failed:', e)
+      if (prevState) setState(prevState)
+    } finally {
+      mutating.current--
+    }
   }, [])
 
   // ── Routine Groups ─────────────────────────────────────────
@@ -380,21 +410,31 @@ export function useStore(userId) {
     }
   }, [])
 
-  const deleteGroup = useCallback((id) => {
-    setState(prev => ({ ...prev, routineGroups: prev.routineGroups.filter(g => g.id !== id) }))
-    supabase.from('routine_groups').delete().eq('id', id)
+  const deleteGroup = useCallback(async (id) => {
+    let prevGroups = null
+    setState(prev => {
+      prevGroups = prev.routineGroups
+      return { ...prev, routineGroups: prev.routineGroups.filter(g => g.id !== id) }
+    })
+    mutating.current++
+    try {
+      const { error } = await supabase.from('routine_groups').delete().eq('id', id)
+      if (error) throw error
+    } catch (e) {
+      console.error('Delete group failed:', e)
+      if (prevGroups) setState(prev => ({ ...prev, routineGroups: prevGroups }))
+    } finally {
+      mutating.current--
+    }
   }, [])
 
   // ── Settings ───────────────────────────────────────────────
-  const updateSettings = useCallback((patch) => {
-    setState(prev => {
-      const newSettings = { ...prev.settings, ...patch }
-      supabase.from('user_settings').upsert({
-        user_id: userId,
-        user_name: newSettings.userName,
-      }, { onConflict: 'user_id' })
-      return { ...prev, settings: newSettings }
-    })
+  const updateSettings = useCallback(async (patch) => {
+    setState(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }))
+    await supabase.from('user_settings').upsert({
+      user_id: userId,
+      user_name: patch.userName,
+    }, { onConflict: 'user_id' })
   }, [userId])
 
   return {
