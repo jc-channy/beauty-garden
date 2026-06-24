@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { getWeeklyProgress, todayKey, CATEGORIES, EFFECTS } from '../store/useStore.js'
+import { getWeeklyProgress, todayKey, CATEGORIES, EFFECTS, CATEGORY_COLORS } from '../store/useStore.js'
 
 const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -267,7 +267,7 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               {/* Nickname (primary) */}
-              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 2 }}>
+              <div style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 2 }}>
                 {displayName}
               </div>
               {/* Brand · name (secondary) */}
@@ -276,13 +276,10 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
               )}
               {/* Tags */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                {product.category && (
-                  <span style={{
-                    fontSize: 11, padding: '2px 8px', borderRadius: 6,
-                    background: 'var(--bg-surface)', color: 'var(--text-muted)',
-                    border: '0.5px solid var(--border-soft)',
-                  }}>{product.category}</span>
-                )}
+                {product.category && (() => {
+                  const c = CATEGORY_COLORS[product.category] || { bg: '#EEE', text: '#666' }
+                  return <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500 }}>{product.category}</span>
+                })()}
                 {(product.effects || []).slice(0, 3).map(e => (
                   <span key={e} style={{
                     fontSize: 11, padding: '2px 8px', borderRadius: 6,
@@ -373,7 +370,7 @@ export default function ProductsPage({ store }) {
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 24 }}>
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>我的產品</div>
+        <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>我的產品</div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{state.products.length} 個保養品</div>
       </div>
 

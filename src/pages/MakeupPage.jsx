@@ -154,10 +154,10 @@ function StepItem({ step }) {
           marginTop: 1,
         }}>{step.step}</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', marginBottom: step.note ? 4 : 0 }}>{step.name}</div>
+          <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: step.note ? 4 : 0 }}>{step.name}</div>
           {step.note && (
             <div style={{
-              fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6,
+              fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6,
               background: 'var(--bg-surface)', borderRadius: 8, padding: '6px 10px',
             }}>
               {step.note}
@@ -179,8 +179,8 @@ export default function MakeupPage() {
     <div className="page-scroll fade-in" style={{ paddingTop: 24 }}>
       {/* Header */}
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)' }}>化妝順序</div>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>點步驟可展開小技巧</div>
+        <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>化妝順序</div>
+        <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 2 }}>每步驟附帶小技巧</div>
       </div>
 
       {/* Tab switcher */}

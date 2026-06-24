@@ -59,7 +59,7 @@ function CheckItem({ product, usedToday, onToggle }) {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 14, fontWeight: 500,
+          fontSize: 16, fontWeight: 500,
           color: usedToday ? 'var(--text-muted)' : 'var(--text-primary)',
           textDecoration: usedToday ? 'line-through' : 'none',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -93,7 +93,7 @@ function RoutineSection({ title, products, usedToday, onToggle, emptyMsg }) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 10,
       }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{title}</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-secondary)' }}>{title}</div>
         {products.length > 0 && (
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             {done} / {products.length}
@@ -164,10 +164,10 @@ export default function HomePage({ store, onManageGroups }) {
     <div className="page-scroll fade-in" style={{ paddingTop: 22 }}>
       {/* Header */}
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.04em', marginBottom: 4 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.04em', marginBottom: 4 }}>
           {formatHeader()}
         </div>
-        <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+        <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.4 }}>
           {getTimeGreeting(settings.userName)}
         </div>
         {streak > 1 && (

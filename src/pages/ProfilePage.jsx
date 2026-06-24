@@ -1,93 +1,152 @@
 import React, { useState } from 'react'
-import { getStreak, getTotalStats, getMonthlyRate } from '../store/useStore.js'
+import { getStreak, getTotalStats, getMonthlyRate, CATEGORY_COLORS } from '../store/useStore.js'
 import { supabase } from '../lib/supabase.js'
 
 // ── Weekly habit tracker ──────────────────────────────────────
-function HabitTracker({ products }) {
-  // Build a set of all dates any product was used
-  const usageByDate = {}
-  products.forEach(p => {
-    ;(p.usageLog || []).forEach(d => {
-      usageByDate[d] = (usageByDate[d] || 0) + 1
-    })
-  })
-
-  // Build last 28 days grouped by week (Mon–Sun)
+function getWeekDates(offset = 0) {
+  // Returns Mon–Sun for the week at offset (0=current, -1=last week…)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+  const dow = today.getDay() // 0=Sun
+  const diffToMon = dow === 0 ? -6 : 1 - dow
+  const mon = new Date(today)
+  mon.setDate(today.getDate() + diffToMon + offset * 7)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mon)
+    d.setDate(mon.getDate() + i)
+    return d.toISOString().slice(0, 10)
+  })
+}
 
-  // Find most recent Sunday as end anchor
-  const days = []
-  for (let i = 27; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    days.push(d.toISOString().slice(0, 10))
-  }
-
-  // Pad front so first day is Monday
-  const firstDow = new Date(days[0] + 'T12:00:00').getDay() // 0=Sun
-  const leadingEmpty = firstDow === 0 ? 6 : firstDow - 1
-  const paddedDays = [...Array(leadingEmpty).fill(null), ...days]
-
-  // Split into weeks
-  const weeks = []
-  for (let i = 0; i < paddedDays.length; i += 7) {
-    weeks.push(paddedDays.slice(i, i + 7))
-  }
-
+function HabitTracker({ products }) {
+  const [weekOffset, setWeekOffset] = useState(0)
+  const weekDates = getWeekDates(weekOffset)
+  const todayStr = new Date().toISOString().slice(0, 10)
   const DOW = ['一', '二', '三', '四', '五', '六', '日']
-  const todayStr = today.toISOString().slice(0, 10)
 
-  function cellColor(dateStr) {
-    if (!dateStr) return 'transparent'
-    if (dateStr > todayStr) return 'var(--bg-surface)'
-    const count = usageByDate[dateStr] || 0
-    if (count === 0) return 'var(--bg-surface)'
-    if (count <= 1) return '#D4E4CC'
-    if (count <= 3) return '#AECBB8'
-    if (count <= 5) return '#7AAA8A'
-    return '#4E8A60'
+  const mon = weekDates[0]
+  const sun = weekDates[6]
+  const fmt = d => `${d.slice(5, 7)}/${d.slice(8, 10)}`
+
+  // Perfect day: all products used on that date
+  function isPerfect(dateStr) {
+    if (!products.length) return false
+    return products.every(p => (p.usageLog || []).includes(dateStr))
   }
 
-  function cellBorder(dateStr) {
-    if (!dateStr || dateStr > todayStr) return '0.5px solid transparent'
-    const count = usageByDate[dateStr] || 0
-    if (count === 0) return '0.5px solid var(--border-soft)'
-    return '0.5px solid transparent'
+  if (products.length === 0) {
+    return <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 13 }}>尚未加入任何產品</div>
   }
 
   return (
     <div>
-      {/* Day labels */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 6 }}>
-        {DOW.map(d => (
-          <div key={d} style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>{d}</div>
-        ))}
-      </div>
-      {/* Grid */}
-      {weeks.map((week, wi) => (
-        <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
-          {week.map((dateStr, di) => {
-            const isToday = dateStr === todayStr
-            return (
-              <div key={di} style={{
-                aspectRatio: '1',
-                borderRadius: 6,
-                background: cellColor(dateStr),
-                border: isToday ? '1.5px solid #7AAA6A' : cellBorder(dateStr),
-                position: 'relative',
-              }} />
-            )
-          })}
+      {/* Week nav */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <button onClick={() => setWeekOffset(w => w - 1)} style={{
+          background: 'none', border: 'none', cursor: 'pointer', fontSize: 18,
+          color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 8,
+        }}>‹</button>
+        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>
+          {fmt(mon)}～{fmt(sun)}
         </div>
-      ))}
-      {/* Legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
-        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>少</span>
-        {['var(--bg-surface)', '#D4E4CC', '#AECBB8', '#7AAA8A', '#4E8A60'].map((c, i) => (
-          <div key={i} style={{ width: 12, height: 12, borderRadius: 3, background: c, border: '0.5px solid var(--border-soft)' }} />
-        ))}
-        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>多</span>
+        <button onClick={() => setWeekOffset(w => Math.min(0, w + 1))} style={{
+          background: 'none', border: 'none', cursor: 'pointer', fontSize: 18,
+          color: weekOffset === 0 ? 'var(--border-soft)' : 'var(--text-secondary)',
+          padding: '2px 8px', borderRadius: 8,
+        }}>›</button>
+      </div>
+
+      {/* Grid */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead>
+            <tr>
+              <th style={{ width: 90, minWidth: 80 }} />
+              {weekDates.map((d, i) => {
+                const isToday = d === todayStr
+                return (
+                  <th key={d} style={{ textAlign: 'center', padding: '0 2px 8px', minWidth: 36 }}>
+                    <div style={{
+                      fontSize: 11, color: isToday ? '#5A7A52' : 'var(--text-muted)',
+                      fontWeight: isToday ? 700 : 400,
+                    }}>{DOW[i]}</div>
+                    <div style={{
+                      fontSize: 10, color: isToday ? '#5A7A52' : 'var(--text-muted)',
+                      fontWeight: isToday ? 600 : 400,
+                    }}>{d.slice(8, 10)}</div>
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {products.map(p => {
+              const name = p.nickname || p.name || p.brand || '未命名'
+              const catColor = p.category ? CATEGORY_COLORS[p.category] : null
+              return (
+                <tr key={p.id}>
+                  <td style={{ paddingRight: 8, paddingBottom: 5 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {p.imagePreview
+                        ? <img src={p.imagePreview} style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }} />
+                        : <div style={{ width: 22, height: 22, borderRadius: 5, background: catColor?.bg || 'var(--bg-surface)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>🧴</div>
+                      }
+                      <span style={{
+                        fontSize: 12, color: 'var(--text-primary)', fontWeight: 500,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        maxWidth: 64,
+                      }}>{name}</span>
+                    </div>
+                  </td>
+                  {weekDates.map(d => {
+                    const used = (p.usageLog || []).includes(d)
+                    const isFuture = d > todayStr
+                    const isToday = d === todayStr
+                    const bg = used
+                      ? (catColor?.bg || '#C8D8C0')
+                      : isFuture ? 'transparent' : 'var(--bg-surface)'
+                    return (
+                      <td key={d} style={{ textAlign: 'center', paddingBottom: 5 }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 7, margin: '0 auto',
+                          background: bg,
+                          border: isToday && !used ? '1.5px solid #C8A87A'
+                            : isFuture ? 'none'
+                            : used ? 'none'
+                            : '0.5px solid var(--border-soft)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {used && <span style={{ fontSize: 12, color: catColor?.text || '#5A7A52' }}>✓</span>}
+                        </div>
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+            {/* Perfect row */}
+            <tr>
+              <td style={{ paddingTop: 6, paddingRight: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>全部完成</span>
+              </td>
+              {weekDates.map(d => {
+                const perfect = isPerfect(d)
+                const isFuture = d > todayStr
+                return (
+                  <td key={d} style={{ textAlign: 'center', paddingTop: 6 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 7, margin: '0 auto',
+                      background: perfect ? '#F8C467' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {perfect && <span style={{ fontSize: 13 }}>★</span>}
+                    </div>
+                  </td>
+                )
+              })}
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   )
@@ -111,6 +170,11 @@ export default function ProfilePage({ store }) {
   const [userName, setUserName] = useState(settings.userName)
   const [saved, setSaved]       = useState(false)
 
+  // Sync when Supabase data loads (async after mount)
+  React.useEffect(() => {
+    setUserName(settings.userName)
+  }, [settings.userName])
+
   const streak = getStreak(products)
   const { activeDays, totalUses } = getTotalStats(products)
   const monthlyRate = getMonthlyRate(products)
@@ -124,7 +188,7 @@ export default function ProfilePage({ store }) {
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 24 }}>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)' }}>我的</div>
+        <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>我的</div>
       </div>
 
       {/* Stats */}
@@ -149,7 +213,7 @@ export default function ProfilePage({ store }) {
       </Section>
 
       {/* Habit tracker */}
-      <Section title="保養勤勞度（近 28 天）">
+      <Section title="保養打卡紀錄">
         <div className="card" style={{ padding: '14px' }}>
           <HabitTracker products={products} />
         </div>
