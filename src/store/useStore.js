@@ -216,6 +216,16 @@ export function useStore(userId) {
     if (userId) loadData()
   }, [userId])
 
+  // Re-fetch when tab becomes visible again (cross-device sync)
+  useEffect(() => {
+    if (!userId) return
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') loadData()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [userId])
+
   async function loadData() {
     setLoading(true)
     try {
