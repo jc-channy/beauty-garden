@@ -298,7 +298,7 @@ export function useStore(userId) {
       notes: notes || '',
       dayItems: [],
       nightItems: [],
-      sortOrder: Date.now(),
+      sortOrder: Math.floor(Date.now() / 1000),
     }
     setState(prev => ({ ...prev, routineGroups: [...prev.routineGroups, newGroup] }))
     const { error } = await supabase.from('routine_groups').insert(groupToRow(newGroup, userId))
