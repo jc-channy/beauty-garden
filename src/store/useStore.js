@@ -239,8 +239,14 @@ export function useStore(userId) {
         supabase.from('user_settings').select('*').eq('user_id', userId),
       ])
 
-      const products = (productRows || []).map(rowToProduct)
-      const routineGroups = (groupRows || []).map(rowToGroup)
+      // Guard: only update state if queries returned real data (not null)
+      if (productRows === null || groupRows === null) {
+        console.warn('loadData: null response, skipping setState')
+        return
+      }
+
+      const products = productRows.map(rowToProduct)
+      const routineGroups = groupRows.map(rowToGroup)
       const settings = settingsRows?.[0] ? {
         userName: settingsRows[0].user_name || '',
       } : INITIAL_STATE.settings
@@ -346,20 +352,32 @@ export function useStore(userId) {
     return newGroup.id
   }, [userId])
 
-  const updateGroup = useCallback((id, patch) => {
+  const updateGroup = useCallback(async (id, patch) => {
+    let prevGroup = null
     setState(prev => {
       const routineGroups = prev.routineGroups.map(g => {
         if (g.id !== id) return g
-        const updated = { ...g, ...patch }
-        const row = {}
-        if (patch.name !== undefined) row.name = patch.name
-        if (patch.dayItems !== undefined) row.day_items = patch.dayItems
-        if (patch.nightItems !== undefined) row.night_items = patch.nightItems
-        supabase.from('routine_groups').update(row).eq('id', id)
-        return updated
+        prevGroup = g
+        return { ...g, ...patch }
       })
       return { ...prev, routineGroups }
     })
+    const row = {}
+    if (patch.name !== undefined) row.name = patch.name
+    if (patch.dayItems !== undefined) row.day_items = patch.dayItems
+    if (patch.nightItems !== undefined) row.night_items = patch.nightItems
+    if (Object.keys(row).length > 0) {
+      const { error } = await supabase.from('routine_groups').update(row).eq('id', id)
+      if (error) {
+        console.error('Group update failed:', error)
+        if (prevGroup) {
+          setState(prev => ({
+            ...prev,
+            routineGroups: prev.routineGroups.map(g => g.id === id ? prevGroup : g),
+          }))
+        }
+      }
+    }
   }, [])
 
   const deleteGroup = useCallback((id) => {
