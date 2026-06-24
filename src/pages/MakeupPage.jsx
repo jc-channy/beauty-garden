@@ -143,37 +143,28 @@ const ROUTINES = {
 }
 
 function StepItem({ step }) {
-  const [open, setOpen] = useState(false)
   return (
-    <div
-      onClick={() => setOpen(s => !s)}
-      style={{
-        padding: '10px 0',
-        borderBottom: '0.5px solid var(--border-soft)',
-        cursor: step.note ? 'pointer' : 'default',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border-soft)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <div style={{
           width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
           background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 11, fontWeight: 500, color: 'var(--text-muted)',
+          marginTop: 1,
         }}>{step.step}</div>
-        <div style={{ flex: 1, fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{step.name}</div>
-        {step.note && (
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none' }}>▾</div>
-        )}
-      </div>
-      {open && step.note && (
-        <div style={{
-          fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6,
-          marginTop: 7, marginLeft: 36,
-          background: 'var(--bg-surface)', borderRadius: 8, padding: '7px 10px',
-        }}>
-          {step.note}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', marginBottom: step.note ? 4 : 0 }}>{step.name}</div>
+          {step.note && (
+            <div style={{
+              fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6,
+              background: 'var(--bg-surface)', borderRadius: 8, padding: '6px 10px',
+            }}>
+              {step.note}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
