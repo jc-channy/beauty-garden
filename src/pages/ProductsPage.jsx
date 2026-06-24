@@ -1,0 +1,486 @@
+import React, { useState, useRef } from 'react'
+import { getWeeklyProgress, todayKey, CATEGORIES, EFFECTS } from '../store/useStore.js'
+
+const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
+
+// ── Image resize ──────────────────────────────────────────────
+function resizeImage(file, maxPx = 600, quality = 0.82) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const blobUrl = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(blobUrl)
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.src = blobUrl
+  })
+}
+
+// ── Frequency Picker ──────────────────────────────────────────
+function FrequencyPicker({ form, setForm }) {
+  const mode = form.frequencyMode || 'daily'
+
+  function toggleDay(dow) {
+    const current = form.targetDays || []
+    const next = current.includes(dow) ? current.filter(d => d !== dow) : [...current, dow]
+    setForm(f => ({ ...f, targetDays: next }))
+  }
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 8 }}>使用頻率</label>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        {[
+          { key: 'daily', label: '每天' },
+          { key: 'days-of-week', label: '指定星期' },
+          { key: 'times-per-week', label: '每週幾次' },
+        ].map(opt => (
+          <button key={opt.key} onClick={() => setForm(f => ({ ...f, frequencyMode: opt.key }))} style={{
+            flex: 1, padding: '7px 4px', borderRadius: 10, fontSize: 12, border: '0.5px solid',
+            borderColor: mode === opt.key ? '#C8A87A' : 'var(--border-soft)',
+            background: mode === opt.key ? '#F2E6D9' : 'var(--bg-surface)',
+            color: mode === opt.key ? '#8A6A40' : 'var(--text-muted)',
+            cursor: 'pointer', fontWeight: mode === opt.key ? 500 : 400,
+          }}>{opt.label}</button>
+        ))}
+      </div>
+
+      {mode === 'days-of-week' && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>選擇要使用的日子</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {DAY_LABELS.map((label, dow) => {
+              const sel = (form.targetDays || []).includes(dow)
+              return (
+                <button key={dow} onClick={() => toggleDay(dow)} style={{
+                  width: 36, height: 36, borderRadius: '50%', border: '1px solid',
+                  borderColor: sel ? '#D7DFD2' : 'var(--border-soft)',
+                  background: sel ? '#EEF4EC' : 'var(--bg-surface)',
+                  color: sel ? '#5A7A52' : 'var(--text-muted)',
+                  fontSize: 12, fontWeight: sel ? 600 : 400, cursor: 'pointer', flexShrink: 0,
+                }}>{label}</button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {mode === 'times-per-week' && (
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>每週目標次數</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <button onClick={() => setForm(f => ({ ...f, timesPerWeek: Math.max(1, (f.timesPerWeek || 3) - 1) }))} style={{
+              width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-surface)',
+              border: '0.5px solid var(--border-soft)', fontSize: 20, cursor: 'pointer',
+              color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>−</button>
+            <div style={{ textAlign: 'center', flex: 1 }}>
+              <span style={{ fontSize: 26, fontWeight: 500, color: 'var(--text-primary)' }}>{form.timesPerWeek || 3}</span>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>次 / 週</span>
+            </div>
+            <button onClick={() => setForm(f => ({ ...f, timesPerWeek: Math.min(7, (f.timesPerWeek || 3) + 1) }))} style={{
+              width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-surface)',
+              border: '0.5px solid var(--border-soft)', fontSize: 20, cursor: 'pointer',
+              color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>＋</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Add / Edit Product Modal ──────────────────────────────────
+function ProductFormModal({ product, products, onClose, onSave }) {
+  const isEdit = Boolean(product)
+  const fileRef = useRef()
+
+  const [form, setForm] = useState({
+    nickname:      product?.nickname      || '',
+    brand:         product?.brand         || '',
+    name:          product?.name          || '',
+    category:      product?.category      || '',
+    effects:       product?.effects       || [],
+    inDay:         product?.dayOrder   !== null && product?.dayOrder   !== undefined,
+    inNight:       product?.nightOrder !== null && product?.nightOrder !== undefined,
+    frequencyMode: product?.frequencyMode || 'daily',
+    targetDays:    product?.targetDays    || [],
+    timesPerWeek:  product?.timesPerWeek  || 3,
+    imagePreview:  product?.imagePreview  || null,
+  })
+
+  async function handleFile(file) {
+    if (!file) return
+    const dataUrl = await resizeImage(file)
+    setForm(f => ({ ...f, imagePreview: dataUrl }))
+  }
+
+  function toggleEffect(e) {
+    setForm(f => ({
+      ...f,
+      effects: f.effects.includes(e) ? f.effects.filter(x => x !== e) : [...f.effects, e],
+    }))
+  }
+
+  function getNextOrder(field) {
+    const orders = products
+      .filter(p => p[field] !== null && p[field] !== undefined && p.id !== product?.id)
+      .map(p => p[field])
+    return orders.length > 0 ? Math.max(...orders) + 1 : 1
+  }
+
+  function handleSave() {
+    const displayName = form.nickname || form.name || form.brand
+    if (!displayName.trim()) return
+
+    const dayOrder   = form.inDay   ? (product?.dayOrder   ?? getNextOrder('dayOrder'))   : null
+    const nightOrder = form.inNight ? (product?.nightOrder ?? getNextOrder('nightOrder')) : null
+
+    onSave({
+      nickname:      form.nickname,
+      brand:         form.brand,
+      name:          form.name,
+      category:      form.category,
+      effects:       form.effects,
+      dayOk:         form.inDay,
+      nightOk:       form.inNight,
+      dayOrder,
+      nightOrder,
+      frequencyMode: form.frequencyMode,
+      targetDays:    form.targetDays,
+      timesPerWeek:  form.timesPerWeek,
+      imagePreview:  form.imagePreview,
+    })
+    onClose()
+  }
+
+  const canSave = (form.nickname || form.name || form.brand).trim().length > 0
+
+  const sectionLabel = {
+    fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 6,
+  }
+  const chipBtn = (selected) => ({
+    padding: '5px 11px', borderRadius: 20, border: '0.5px solid', fontSize: 12, cursor: 'pointer',
+    borderColor: selected ? '#C8A87A' : 'var(--border-soft)',
+    background: selected ? '#F2E6D9' : 'var(--bg-surface)',
+    color: selected ? '#8A6A40' : 'var(--text-muted)',
+    fontWeight: selected ? 500 : 400,
+    marginBottom: 5,
+  })
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '92vh', overflowY: 'auto' }}>
+        <div className="modal-handle" />
+        <h3 style={{ fontSize: 17, fontWeight: 500, marginBottom: 18 }}>
+          {isEdit ? '編輯保養品' : '新增保養品'}
+        </h3>
+
+        {/* Image */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+          <div
+            onClick={() => fileRef.current?.click()}
+            style={{
+              width: 70, height: 70, borderRadius: 14, flexShrink: 0, cursor: 'pointer',
+              background: form.imagePreview ? 'transparent' : 'var(--bg-surface)',
+              border: '0.5px dashed var(--border-soft)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              overflow: 'hidden', position: 'relative',
+            }}
+          >
+            {form.imagePreview
+              ? <img src={form.imagePreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 22 }}>📷</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>上傳</div>
+                </div>
+            }
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
+          <div style={{ flex: 1 }}>
+            <label style={sectionLabel}>暱稱（首頁顯示）</label>
+            <input type="text" value={form.nickname} onChange={e => setForm(f => ({ ...f, nickname: e.target.value }))} placeholder="例：早安維 C" style={{ marginBottom: 8 }} />
+            <label style={sectionLabel}>品牌</label>
+            <input type="text" value={form.brand} onChange={e => setForm(f => ({ ...f, brand: e.target.value }))} placeholder="品牌名稱" />
+          </div>
+        </div>
+
+        <label style={sectionLabel}>產品名稱</label>
+        <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="完整產品名" style={{ marginBottom: 14 }} />
+
+        {/* Category */}
+        <label style={sectionLabel}>類別</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 16 }}>
+          {CATEGORIES.map(cat => (
+            <button key={cat} onClick={() => setForm(f => ({ ...f, category: f.category === cat ? '' : cat }))} style={chipBtn(form.category === cat)}>
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Effects */}
+        <label style={sectionLabel}>功效（可多選）</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 16 }}>
+          {EFFECTS.map(e => (
+            <button key={e} onClick={() => toggleEffect(e)} style={chipBtn(form.effects.includes(e))}>
+              {e}
+            </button>
+          ))}
+        </div>
+
+        {/* Routine */}
+        <label style={sectionLabel}>加入保養步驟</label>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {[
+            { key: 'inDay', label: '🌤 早上', desc: '加入早上保養' },
+            { key: 'inNight', label: '🌙 晚上', desc: '加入晚上保養' },
+          ].map(opt => (
+            <button key={opt.key} onClick={() => setForm(f => ({ ...f, [opt.key]: !f[opt.key] }))} style={{
+              flex: 1, padding: '10px 8px', borderRadius: 12, border: '0.5px solid',
+              borderColor: form[opt.key] ? '#A8C8A0' : 'var(--border-soft)',
+              background: form[opt.key] ? '#EEF4EC' : 'var(--bg-surface)',
+              color: form[opt.key] ? '#5A7A52' : 'var(--text-muted)',
+              cursor: 'pointer', fontSize: 13, fontWeight: form[opt.key] ? 500 : 400,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+            }}>
+              <span style={{ fontSize: 18 }}>{opt.label.split(' ')[0]}</span>
+              <span style={{ fontSize: 12 }}>{opt.label.split(' ')[1]}</span>
+              {form[opt.key] && <span style={{ fontSize: 10, color: '#7AAA6A' }}>✓ 已加入</span>}
+            </button>
+          ))}
+        </div>
+
+        <FrequencyPicker form={form} setForm={setForm} />
+
+        <button className="btn-primary" onClick={handleSave} disabled={!canSave}
+          style={{ opacity: canSave ? 1 : 0.5 }}>
+          {isEdit ? '儲存' : '加入產品'}
+        </button>
+
+        {isEdit && (
+          <div style={{ height: 8 }} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Product Card ──────────────────────────────────────────────
+function ProductCard({ product, products, onDelete, onUpdate }) {
+  const [showMenu, setShowMenu] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+
+  const today = todayKey()
+  const progress = getWeeklyProgress(product)
+
+  const displayName = product.nickname || product.name || product.brand || '未命名'
+  const subLine = product.nickname
+    ? [product.brand, product.name].filter(Boolean).join(' · ')
+    : [product.brand].filter(Boolean).join('')
+
+  const inAM = product.dayOrder   !== null && product.dayOrder   !== undefined
+  const inPM = product.nightOrder !== null && product.nightOrder !== undefined
+
+  return (
+    <div className="card fade-in" style={{ padding: '13px 14px', marginBottom: 8 }}>
+      <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+        {/* Thumbnail */}
+        {product.imagePreview ? (
+          <img src={product.imagePreview} alt={displayName} style={{
+            width: 52, height: 52, objectFit: 'cover', borderRadius: 12,
+            flexShrink: 0, border: '0.5px solid var(--border-soft)',
+          }} />
+        ) : (
+          <div style={{
+            width: 52, height: 52, borderRadius: 12, background: 'var(--bg-surface)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, flexShrink: 0, border: '0.5px solid var(--border-soft)',
+          }}>🧴</div>
+        )}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Nickname (primary) */}
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 2 }}>
+                {displayName}
+              </div>
+              {/* Brand · name (secondary) */}
+              {subLine && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 5 }}>{subLine}</div>
+              )}
+              {/* Tags */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                {product.category && (
+                  <span style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 6,
+                    background: 'var(--bg-surface)', color: 'var(--text-muted)',
+                    border: '0.5px solid var(--border-soft)',
+                  }}>{product.category}</span>
+                )}
+                {(product.effects || []).slice(0, 3).map(e => (
+                  <span key={e} style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 6,
+                    background: '#EEF4EC', color: '#5A7A52',
+                  }}>{e}</span>
+                ))}
+                {(product.effects || []).length > 3 && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>+{product.effects.length - 3}</span>
+                )}
+                {inAM && <span style={{ fontSize: 12 }}>🌤</span>}
+                {inPM && <span style={{ fontSize: 12 }}>🌙</span>}
+              </div>
+            </div>
+            <button onClick={() => setShowMenu(s => !s)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-muted)', fontSize: 18, lineHeight: 1,
+              padding: 2, flexShrink: 0, marginLeft: 4,
+            }}>···</button>
+          </div>
+
+          {/* Week dots */}
+          <div style={{ display: 'flex', gap: 3, marginTop: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 2 }}>本週</span>
+            {progress.weekDates.map((date, i) => {
+              const used = (product.usageLog || []).includes(date)
+              const isToday = date === today
+              const isFuture = date > today
+              return (
+                <div key={date} style={{
+                  width: 20, height: 20, borderRadius: '50%', fontSize: 11,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: used ? '#C8D8C0' : isFuture ? 'transparent' : '#EEE8E2',
+                  border: isToday ? '1.5px solid #C8A87A' : '1px solid transparent',
+                  color: used ? '#5A7A52' : '#C4B0A0', flexShrink: 0,
+                }}>
+                  {['一','二','三','四','五','六','日'][i]}
+                </div>
+              )
+            })}
+            {progress.completed && (
+              <span style={{ fontSize: 11, color: '#5A7A52', marginLeft: 3 }}>🌸 達標</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Context menu */}
+      {showMenu && (
+        <div style={{ borderTop: '0.5px solid var(--border-soft)', marginTop: 10, paddingTop: 8 }}>
+          <button onClick={() => { setShowEdit(true); setShowMenu(false) }} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 13, color: 'var(--text-secondary)', padding: '5px 0', display: 'block', width: '100%', textAlign: 'left',
+          }}>編輯</button>
+          <button onClick={() => { onDelete(product.id); setShowMenu(false) }} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 13, color: '#C06060', padding: '5px 0', display: 'block', marginTop: 2, width: '100%', textAlign: 'left',
+          }}>刪除產品</button>
+        </div>
+      )}
+
+      {showEdit && (
+        <ProductFormModal
+          product={product}
+          products={products}
+          onClose={() => setShowEdit(false)}
+          onSave={(patch) => onUpdate(product.id, patch)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────
+export default function ProductsPage({ store }) {
+  const { state, addProduct, deleteProduct, updateProduct } = store
+  const [showAdd, setShowAdd] = useState(false)
+  const [activeCategory, setActiveCategory] = useState('全部')
+  const [search, setSearch] = useState('')
+
+  const categoryFilters = ['全部', ...CATEGORIES]
+
+  const filtered = state.products.filter(p => {
+    const matchCat = activeCategory === '全部' || p.category === activeCategory
+    const q = search.toLowerCase()
+    const matchSearch = !q || [p.nickname, p.brand, p.name, p.category, ...(p.effects || [])]
+      .some(s => (s || '').toLowerCase().includes(q))
+    return matchCat && matchSearch
+  })
+
+  return (
+    <div className="page-scroll fade-in" style={{ paddingTop: 24 }}>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>我的產品</div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{state.products.length} 個保養品</div>
+      </div>
+
+      <input
+        type="text" value={search} onChange={e => setSearch(e.target.value)}
+        placeholder="搜尋名稱、品牌、功效…" style={{ marginBottom: 12 }}
+      />
+
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 16, scrollbarWidth: 'none' }}>
+        {categoryFilters.map(cat => (
+          <button key={cat} onClick={() => setActiveCategory(cat)} style={{
+            flexShrink: 0, padding: '6px 14px', borderRadius: 20, border: '0.5px solid',
+            borderColor: activeCategory === cat ? '#C8A87A' : 'var(--border-soft)',
+            background: activeCategory === cat ? '#F2E6D9' : 'var(--bg-card)',
+            color: activeCategory === cat ? '#8A6A40' : 'var(--text-muted)',
+            fontSize: 13, cursor: 'pointer', fontWeight: activeCategory === cat ? 500 : 400,
+          }}>{cat}</button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🌿</div>
+          <div style={{ fontSize: 14, marginBottom: 4 }}>
+            {search ? '找不到符合的產品' : '還沒有任何產品'}
+          </div>
+          <div style={{ fontSize: 12 }}>點下方「＋」新增你的第一個保養品</div>
+        </div>
+      ) : (
+        filtered.map(p => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            products={state.products}
+            onDelete={deleteProduct}
+            onUpdate={updateProduct}
+          />
+        ))
+      )}
+
+      <button
+        onClick={() => setShowAdd(true)}
+        style={{
+          position: 'fixed',
+          bottom: `calc(var(--tab-height) + var(--safe-bottom) + 16px)`,
+          right: 20,
+          width: 54, height: 54, borderRadius: '50%',
+          background: '#D7DFD2', border: 'none', cursor: 'pointer',
+          fontSize: 26, color: '#5A7A52',
+          boxShadow: '0 4px 16px rgba(120,160,100,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 40, transition: 'transform 0.15s',
+        }}
+        onTouchStart={e => e.currentTarget.style.transform = 'scale(0.92)'}
+        onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+      >＋</button>
+
+      {showAdd && (
+        <ProductFormModal
+          products={state.products}
+          onClose={() => setShowAdd(false)}
+          onSave={addProduct}
+        />
+      )}
+    </div>
+  )
+}

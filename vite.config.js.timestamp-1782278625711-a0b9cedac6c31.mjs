@@ -1,0 +1,14 @@
+// vite.config.js
+import { defineConfig } from "file:///sessions/eager-upbeat-cerf/mnt/%E5%A5%B3%E5%AD%A9%E7%9A%84%E7%BE%8E%E9%BA%97%E7%AE%A1%E7%90%86/beauty-garden/node_modules/vite/dist/node/index.js";
+import react from "file:///sessions/eager-upbeat-cerf/mnt/%E5%A5%B3%E5%AD%A9%E7%9A%84%E7%BE%8E%E9%BA%97%E7%AE%A1%E7%90%86/beauty-garden/node_modules/@vitejs/plugin-react/dist/index.js";
+var vite_config_default = defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    host: true
+  }
+});
+export {
+  vite_config_default as default
+};
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsidml0ZS5jb25maWcuanMiXSwKICAic291cmNlc0NvbnRlbnQiOiBbImNvbnN0IF9fdml0ZV9pbmplY3RlZF9vcmlnaW5hbF9kaXJuYW1lID0gXCIvc2Vzc2lvbnMvZWFnZXItdXBiZWF0LWNlcmYvbW50L1x1NTk3M1x1NUI2OVx1NzY4NFx1N0Y4RVx1OUU5N1x1N0JBMVx1NzQwNi9iZWF1dHktZ2FyZGVuXCI7Y29uc3QgX192aXRlX2luamVjdGVkX29yaWdpbmFsX2ZpbGVuYW1lID0gXCIvc2Vzc2lvbnMvZWFnZXItdXBiZWF0LWNlcmYvbW50L1x1NTk3M1x1NUI2OVx1NzY4NFx1N0Y4RVx1OUU5N1x1N0JBMVx1NzQwNi9iZWF1dHktZ2FyZGVuL3ZpdGUuY29uZmlnLmpzXCI7Y29uc3QgX192aXRlX2luamVjdGVkX29yaWdpbmFsX2ltcG9ydF9tZXRhX3VybCA9IFwiZmlsZTovLy9zZXNzaW9ucy9lYWdlci11cGJlYXQtY2VyZi9tbnQvJUU1JUE1JUIzJUU1JUFEJUE5JUU3JTlBJTg0JUU3JUJFJThFJUU5JUJBJTk3JUU3JUFFJUExJUU3JTkwJTg2L2JlYXV0eS1nYXJkZW4vdml0ZS5jb25maWcuanNcIjtpbXBvcnQgeyBkZWZpbmVDb25maWcgfSBmcm9tICd2aXRlJ1xuaW1wb3J0IHJlYWN0IGZyb20gJ0B2aXRlanMvcGx1Z2luLXJlYWN0J1xuXG5leHBvcnQgZGVmYXVsdCBkZWZpbmVDb25maWcoe1xuICBwbHVnaW5zOiBbcmVhY3QoKV0sXG4gIHNlcnZlcjoge1xuICAgIHBvcnQ6IDUxNzMsXG4gICAgaG9zdDogdHJ1ZVxuICB9XG59KVxuIl0sCiAgIm1hcHBpbmdzIjogIjtBQUF5WSxTQUFTLG9CQUFvQjtBQUN0YSxPQUFPLFdBQVc7QUFFbEIsSUFBTyxzQkFBUSxhQUFhO0FBQUEsRUFDMUIsU0FBUyxDQUFDLE1BQU0sQ0FBQztBQUFBLEVBQ2pCLFFBQVE7QUFBQSxJQUNOLE1BQU07QUFBQSxJQUNOLE1BQU07QUFBQSxFQUNSO0FBQ0YsQ0FBQzsiLAogICJuYW1lcyI6IFtdCn0K
