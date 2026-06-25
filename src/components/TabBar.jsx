@@ -1,10 +1,10 @@
 import React from 'react'
 
 const TABS = [
-  { id: 'home',     label: '今日',  icon: '✦' },
-  { id: 'products', label: '產品',  icon: '◈' },
+  { id: 'home',     label: '打卡',  icon: '✦' },
+  { id: 'products', label: '我的',  icon: '◈' },
   { id: 'makeup',   label: '化妝',  icon: '✿' },
-  { id: 'profile',  label: '我的',  icon: '◉' },
+  { id: 'profile',  label: '紀錄',  icon: '◉' },
 ]
 
 export default function TabBar({ current, onChange }) {

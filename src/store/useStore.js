@@ -323,9 +323,8 @@ export function useStore(userId) {
   }
 
   // ── Products ───────────────────────────────────────────────
-  const toggleProductUseToday = useCallback(async (productId, section) => {
-    const today = todayKey()
-    const key = section ? `${today}-${section}` : today
+  const toggleProductUseDate = useCallback(async (productId, section, date) => {
+    const key = section ? `${date}-${section}` : date
 
     // Read current log from stateRef (not inside setState updater)
     // This avoids React 18 StrictMode double-invoke bug where newLog gets reversed
@@ -359,6 +358,10 @@ export function useStore(userId) {
       mutating.current--
     }
   }, [])
+
+  const toggleProductUseToday = useCallback((productId, section) => {
+    return toggleProductUseDate(productId, section, todayKey())
+  }, [toggleProductUseDate])
 
   const addProduct = useCallback(async (product) => {
     const newProduct = {
@@ -530,6 +533,7 @@ export function useStore(userId) {
     loading,
     groupDays,
     setGroupTargetDays,
+    toggleProductUseDate,
     toggleProductUseToday,
     addProduct,
     updateProduct,

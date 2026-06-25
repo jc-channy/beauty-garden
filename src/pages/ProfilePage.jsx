@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import { getStreak, getTotalStats, getMonthlyRate, CATEGORY_COLORS, localDateStr, getWeekDates, isUsedOnDate } from '../store/useStore.js'
 import { supabase } from '../lib/supabase.js'
 
-// ── Habit tracker ─────────────────────────────────────────────
-function HabitTracker({ products, onToggle, amOrder, pmOrder, onReorder }) {
+// ── Habit tracker (read-only) ──────────────────────────────────
+function HabitTracker({ products, amOrder, pmOrder }) {
   const hour = new Date().getHours()
   const [section, setSection] = useState(hour >= 12 ? 'pm' : 'am')
   const [weekOffset, setWeekOffset] = useState(0)
@@ -12,18 +12,9 @@ function HabitTracker({ products, onToggle, amOrder, pmOrder, onReorder }) {
   const DOW = ['一', '二', '三', '四', '五', '六', '日']
   const fmt = d => `${d.slice(5, 7)}/${d.slice(8, 10)}`
 
-  // Drag state
-  const [dragIndex, setDragIndex] = useState(null)
-  const [overIndex, setOverIndex] = useState(null)
-  const listRef = useRef(null)
-  const dragStateRef = useRef({ dragIndex: null, overIndex: null })
-
-  // Filter products for current tab
   const filtered = products.filter(p => !p.timeOfDay || p.timeOfDay === section)
-
-  // Apply custom order
   const order = section === 'am' ? amOrder : pmOrder
-  const sorted = React.useMemo(() => {
+  const sorted = (() => {
     if (!order || order.length === 0) return filtered
     const indexed = new Map(order.map((id, i) => [id, i]))
     return [...filtered].sort((a, b) => {
@@ -31,53 +22,7 @@ function HabitTracker({ products, onToggle, amOrder, pmOrder, onReorder }) {
       const bi = indexed.has(b.id) ? indexed.get(b.id) : Infinity
       return ai - bi
     })
-  }, [filtered.map(p => p.id).join(','), order?.join(',')])  // eslint-disable-line
-
-  const sortedRef = useRef(sorted)
-  useEffect(() => { sortedRef.current = sorted }, [sorted])
-
-  function getIndexFromY(clientY) {
-    const children = Array.from(listRef.current?.children || [])
-    for (let i = 0; i < children.length; i++) {
-      if (clientY < children[i].getBoundingClientRect().bottom) return i
-    }
-    return Math.max(0, children.length - 1)
-  }
-
-  // Keep section in ref so event handlers always see latest value without re-registering
-  const sectionRef = useRef(section)
-  useEffect(() => { sectionRef.current = section }, [section])
-  const onReorderRef = useRef(onReorder)
-  useEffect(() => { onReorderRef.current = onReorder }, [onReorder])
-
-  useEffect(() => {
-    function onTouchMove(e) {
-      if (dragStateRef.current.dragIndex === null) return
-      e.preventDefault()
-      const touch = e.touches[0]
-      const idx = getIndexFromY(touch.clientY)
-      dragStateRef.current.overIndex = idx
-      setOverIndex(idx)
-    }
-    function onTouchEnd() {
-      const { dragIndex: di, overIndex: oi } = dragStateRef.current
-      if (di !== null && oi !== null && di !== oi) {
-        const next = [...sortedRef.current]
-        const [moved] = next.splice(di, 1)
-        next.splice(oi, 0, moved)
-        onReorderRef.current(sectionRef.current, next.map(p => p.id))
-      }
-      dragStateRef.current = { dragIndex: null, overIndex: null }
-      setDragIndex(null)
-      setOverIndex(null)
-    }
-    document.addEventListener('touchmove', onTouchMove, { passive: false })
-    document.addEventListener('touchend', onTouchEnd)
-    return () => {
-      document.removeEventListener('touchmove', onTouchMove)
-      document.removeEventListener('touchend', onTouchEnd)
-    }
-  }, [])
+  })()
 
   function isPerfect(dateStr) {
     if (!sorted.length) return false
@@ -123,8 +68,7 @@ function HabitTracker({ products, onToggle, amOrder, pmOrder, onReorder }) {
         <div style={{ overflowX: 'auto' }}>
           {/* Column headers */}
           <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 6, paddingLeft: 4 }}>
-            <div style={{ width: 20, flexShrink: 0 }} />
-            <div style={{ width: 76, minWidth: 76 }} />
+            <div style={{ width: 80, minWidth: 80 }} />
             {weekDates.map((d, i) => {
               const isToday = d === todayStr
               return (
@@ -136,63 +80,39 @@ function HabitTracker({ products, onToggle, amOrder, pmOrder, onReorder }) {
             })}
           </div>
 
-          {/* Product rows (draggable) */}
-          <div ref={listRef}>
-            {sorted.map((p, index) => {
+          {/* Product rows (read-only) */}
+          <div>
+            {sorted.map(p => {
               const name = p.nickname || p.name || p.brand || '未命名'
               const catColor = p.category ? CATEGORY_COLORS[p.category] : null
-              const isDragging = dragIndex === index
-              const isOver = overIndex === index && dragIndex !== null && dragIndex !== index
               return (
-                <div key={p.id} style={{
-                  opacity: isDragging ? 0.4 : 1,
-                  borderTop: isOver && dragIndex > index ? '2px solid #A8C8A0' : 'none',
-                  borderBottom: isOver && dragIndex < index ? '2px solid #A8C8A0' : 'none',
-                  transition: 'opacity 0.15s',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', paddingBottom: 5, paddingLeft: 4 }}>
-                    {/* Drag handle */}
-                    <div
-                      onTouchStart={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        dragStateRef.current = { dragIndex: index, overIndex: index }
-                        setDragIndex(index)
-                        setOverIndex(index)
-                      }}
-                      style={{ width: 20, fontSize: 14, color: 'var(--text-muted)', cursor: 'grab', userSelect: 'none', touchAction: 'none', flexShrink: 0 }}
-                    >⠿</div>
-                    {/* Product info */}
-                    <div style={{ width: 76, minWidth: 76, display: 'flex', alignItems: 'center', gap: 5, paddingRight: 6 }}>
-                      {p.imagePreview
-                        ? <img src={p.imagePreview} style={{ width: 20, height: 20, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }} />
-                        : <div style={{ width: 20, height: 20, borderRadius: 5, background: catColor?.bg || 'var(--bg-surface)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>🧴</div>
-                      }
-                      <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                    </div>
-                    {/* Day cells */}
-                    {weekDates.map(d => {
-                      const used = isUsedOnDate(p.usageLog, d, section)
-                      const isFuture = d > todayStr
-                      const isToday = d === todayStr
-                      return (
-                        <div key={d} style={{ width: 34, minWidth: 34, textAlign: 'center' }}>
-                          <div
-                            onClick={() => !isFuture && onToggle(p.id, section)}
-                            style={{
-                              width: 28, height: 28, borderRadius: 7, margin: '0 auto',
-                              background: used ? (catColor?.bg || '#C8D8C0') : isFuture ? 'transparent' : 'var(--bg-surface)',
-                              border: isToday && !used ? '1.5px solid #C8A87A' : isFuture ? 'none' : used ? 'none' : '0.5px solid var(--border-soft)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              cursor: isFuture ? 'default' : 'pointer',
-                            }}
-                          >
-                            {used && <span style={{ fontSize: 12, color: catColor?.text || '#5A7A52' }}>✓</span>}
-                          </div>
-                        </div>
-                      )
-                    })}
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', paddingBottom: 5, paddingLeft: 4 }}>
+                  {/* Product info */}
+                  <div style={{ width: 80, minWidth: 80, display: 'flex', alignItems: 'center', gap: 5, paddingRight: 6 }}>
+                    {p.imagePreview
+                      ? <img src={p.imagePreview} style={{ width: 20, height: 20, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }} />
+                      : <div style={{ width: 20, height: 20, borderRadius: 5, background: catColor?.bg || 'var(--bg-surface)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>🧴</div>
+                    }
+                    <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                   </div>
+                  {/* Day cells — read-only */}
+                  {weekDates.map(d => {
+                    const used = isUsedOnDate(p.usageLog, d, section)
+                    const isFuture = d > todayStr
+                    const isToday = d === todayStr
+                    return (
+                      <div key={d} style={{ width: 34, minWidth: 34, textAlign: 'center' }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 7, margin: '0 auto',
+                          background: used ? (catColor?.bg || '#C8D8C0') : isFuture ? 'transparent' : 'var(--bg-surface)',
+                          border: isToday && !used ? '1.5px solid #C8A87A' : isFuture ? 'none' : used ? 'none' : '0.5px solid var(--border-soft)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {used && <span style={{ fontSize: 12, color: catColor?.text || '#5A7A52' }}>✓</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )
             })}
@@ -200,8 +120,7 @@ function HabitTracker({ products, onToggle, amOrder, pmOrder, onReorder }) {
 
           {/* Perfect row */}
           <div style={{ display: 'flex', alignItems: 'center', paddingTop: 4, paddingLeft: 4 }}>
-            <div style={{ width: 20, flexShrink: 0 }} />
-            <div style={{ width: 76, minWidth: 76, fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, paddingRight: 6 }}>全部完成</div>
+            <div style={{ width: 80, minWidth: 80, fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, paddingRight: 6 }}>全部完成</div>
             {weekDates.map(d => {
               const perfect = isPerfect(d)
               return (
@@ -235,7 +154,7 @@ function Section({ title, children }) {
 }
 
 export default function ProfilePage({ store }) {
-  const { state, updateSettings, toggleProductUseToday, updateTrackerOrder } = store
+  const { state, updateSettings } = store
   const { settings, products } = state
 
   const [userName, setUserName] = useState(settings.userName)
@@ -259,7 +178,7 @@ export default function ProfilePage({ store }) {
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 24 }}>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>我的</div>
+        <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>紀錄</div>
       </div>
 
       {/* Stats */}
@@ -283,15 +202,13 @@ export default function ProfilePage({ store }) {
         </div>
       </Section>
 
-      {/* Habit tracker */}
+      {/* Habit tracker — read-only */}
       <Section title="保養打卡紀錄">
         <div className="card" style={{ padding: '14px' }}>
           <HabitTracker
             products={products}
-            onToggle={toggleProductUseToday}
             amOrder={settings.trackerAmOrder}
             pmOrder={settings.trackerPmOrder}
-            onReorder={updateTrackerOrder}
           />
         </div>
       </Section>
@@ -334,7 +251,6 @@ export default function ProfilePage({ store }) {
         {saved ? '✓ 已儲存' : '儲存設定'}
       </button>
 
-      {/* [Fix 10] Removed 清除本機快取 — developer tool not for end users */}
       <div style={{ marginTop: 32, paddingTop: 20, borderTop: '0.5px solid var(--border-soft)' }}>
         <button
           onClick={() => supabase.auth.signOut()}
