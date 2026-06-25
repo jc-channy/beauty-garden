@@ -11,10 +11,10 @@ export function todayKey() {
   return localDateStr(new Date())
 }
 
-export function getWeekDates() {
+export function getWeekDates(offset = 0) {
   const today = new Date()
   const day = today.getDay()
-  const diff = today.getDate() - day + (day === 0 ? -6 : 1)
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1) + offset * 7
   const monday = new Date(today)
   monday.setDate(diff)
   monday.setHours(0, 0, 0, 0)
@@ -23,6 +23,14 @@ export function getWeekDates() {
     d.setDate(d.getDate() + i)
     return localDateStr(d)
   })
+}
+
+// usageLog entries: 'YYYY-MM-DD' (old, = both AM+PM) or 'YYYY-MM-DD-am' / 'YYYY-MM-DD-pm'
+export function isUsedOnDate(log, date, section) {
+  const entries = log || []
+  if (entries.includes(date)) return true          // backward-compat: plain date = both
+  if (!section) return entries.some(e => e.startsWith(date + '-'))
+  return entries.includes(`${date}-${section}`)
 }
 
 function dayOfWeekFor(dateStr) {
@@ -67,13 +75,13 @@ export function getWeeklyProgress(product) {
 
 export function getStreak(products) {
   const today = todayKey()
-  const todayUsed = products.some(p => (p.usageLog || []).includes(today))
+  const todayUsed = products.some(p => isUsedOnDate(p.usageLog, today, null))
   let streak = todayUsed ? 1 : 0
   const d = new Date()
   d.setDate(d.getDate() - 1)
   while (streak < 365) {
     const key = localDateStr(d)
-    const anyUsed = products.some(p => (p.usageLog || []).includes(key))
+    const anyUsed = products.some(p => isUsedOnDate(p.usageLog, key, null))
     if (!anyUsed) break
     streak++
     d.setDate(d.getDate() - 1)
@@ -85,7 +93,7 @@ export function getTotalStats(products) {
   const allDates = new Set()
   let totalUses = 0
   products.forEach(p => {
-    ;(p.usageLog || []).forEach(d => { allDates.add(d); totalUses++ })
+    ;(p.usageLog || []).forEach(e => { allDates.add(e.slice(0, 10)); totalUses++ })
   })
   return { activeDays: allDates.size, totalUses }
 }
@@ -97,7 +105,8 @@ export function getMonthlyRate(products) {
   const today = now.getDate()
   const allDates = new Set()
   products.forEach(p => {
-    ;(p.usageLog || []).forEach(d => {
+    ;(p.usageLog || []).forEach(e => {
+      const d = e.slice(0, 10)
       const [y, m] = d.split('-').map(Number)
       if (y === year && m === month + 1) allDates.add(d)
     })
@@ -160,7 +169,7 @@ export const EFFECT_COLORS = {
 const INITIAL_STATE = {
   products: [],
   routineGroups: [],
-  settings: { userName: '' },
+  settings: { userName: '', trackerAmOrder: [], trackerPmOrder: [] },
 }
 
 // ── DB mapping ────────────────────────────────────────────────
@@ -284,6 +293,8 @@ export function useStore(userId) {
       const routineGroups = groupRows.map(rowToGroup)
       const settings = settingsRows?.[0] ? {
         userName: settingsRows[0].user_name || '',
+        trackerAmOrder: settingsRows[0].tracker_am_order || [],
+        trackerPmOrder: settingsRows[0].tracker_pm_order || [],
       } : INITIAL_STATE.settings
 
       setState({ products, routineGroups, settings })
@@ -294,8 +305,9 @@ export function useStore(userId) {
   }
 
   // ── Products ───────────────────────────────────────────────
-  const toggleProductUseToday = useCallback(async (productId) => {
+  const toggleProductUseToday = useCallback(async (productId, section) => {
     const today = todayKey()
+    const key = section ? `${today}-${section}` : today
     let prevProducts = null
     let newLog
     setState(prev => {
@@ -303,8 +315,8 @@ export function useStore(userId) {
       const products = prev.products.map(p => {
         if (p.id !== productId) return p
         const log = p.usageLog || []
-        const has = log.includes(today)
-        newLog = has ? log.filter(d => d !== today) : [...log, today]
+        const has = log.includes(key)
+        newLog = has ? log.filter(d => d !== key) : [...log, key]
         return { ...p, usageLog: newLog }
       })
       return { ...prev, products }
@@ -477,6 +489,16 @@ export function useStore(userId) {
     }, { onConflict: 'user_id' })
   }, [userId])
 
+  const updateTrackerOrder = useCallback(async (section, order) => {
+    const stateKey = section === 'am' ? 'trackerAmOrder' : 'trackerPmOrder'
+    const dbKey   = section === 'am' ? 'tracker_am_order' : 'tracker_pm_order'
+    setState(prev => ({ ...prev, settings: { ...prev.settings, [stateKey]: order } }))
+    await supabase.from('user_settings').upsert(
+      { user_id: userId, [dbKey]: order },
+      { onConflict: 'user_id' }
+    )
+  }, [userId])
+
   return {
     state,
     loading,
@@ -490,5 +512,6 @@ export function useStore(userId) {
     updateGroup,
     deleteGroup,
     updateSettings,
+    updateTrackerOrder,
   }
 }

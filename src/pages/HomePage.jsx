@@ -1,5 +1,5 @@
 import React from 'react'
-import { todayKey, getStreak, getMonthlyRate, CATEGORY_COLORS } from '../store/useStore.js'
+import { todayKey, getStreak, getMonthlyRate, CATEGORY_COLORS, isUsedOnDate } from '../store/useStore.js'
 
 function getTimeGreeting(userName) {
   const h = new Date().getHours()
@@ -18,7 +18,7 @@ function formatHeader() {
   return `${d.getFullYear()}.${mo}.${dy} 星期${days[d.getDay()]}`
 }
 
-function CheckItem({ product, usedToday, onToggle, section }) {
+function CheckItem({ product, usedToday, onToggle, section, index }) {
   const displayName = product.nickname || product.name || product.brand || '未命名'
   const subName = product.nickname
     ? [product.brand, product.name].filter(Boolean).join(' ')
@@ -41,17 +41,18 @@ function CheckItem({ product, usedToday, onToggle, section }) {
         transition: 'all 0.2s',
         cursor: 'pointer',
       }}
-      onClick={() => onToggle(product.id)}
+      onClick={onToggle}
     >
       <div style={{
         width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
         border: `1.5px solid ${usedToday ? '#7AAA6A' : '#D8CCBF'}`,
         background: usedToday ? '#7AAA6A' : 'transparent',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 13, color: '#fff',
+        fontSize: usedToday ? 13 : 11, color: usedToday ? '#fff' : 'var(--text-muted)',
+        fontWeight: 500,
         transition: 'all 0.2s',
       }}>
-        {usedToday ? '✓' : ''}
+        {usedToday ? '✓' : (index ?? '')}
       </div>
 
       {product.imagePreview && (
@@ -103,9 +104,9 @@ function CheckItem({ product, usedToday, onToggle, section }) {
   )
 }
 
-function RoutineSection({ title, products, usedToday, onToggle, emptyMsg, defaultCollapsed, section }) {
+function RoutineSection({ title, products, today, onToggle, emptyMsg, defaultCollapsed, section }) {
   const [collapsed, setCollapsed] = React.useState(defaultCollapsed ?? false)
-  const done = products.filter(p => usedToday.has(p.id)).length
+  const done = products.filter(p => isUsedOnDate(p.usageLog, today, section)).length
   const allDone = products.length > 0 && done === products.length
 
   return (
@@ -148,13 +149,14 @@ function RoutineSection({ title, products, usedToday, onToggle, emptyMsg, defaul
             {emptyMsg}
           </div>
         ) : (
-          products.map(p => (
+          products.map((p, idx) => (
             <CheckItem
               key={p.id}
               product={p}
-              usedToday={usedToday.has(p.id)}
-              onToggle={onToggle}
+              usedToday={isUsedOnDate(p.usageLog, today, section)}
+              onToggle={() => onToggle(p.id, section)}
               section={section}
+              index={idx + 1}
             />
           ))
         )
@@ -186,10 +188,6 @@ export default function HomePage({ store, onManageGroups }) {
   const effectiveGroupId = selectedGroupId ?? autoGroupId
   const selectedGroup = groups.find(g => g.id === effectiveGroupId) || null
 
-  const usedTodaySet = new Set(
-    products.filter(p => (p.usageLog || []).includes(today)).map(p => p.id)
-  )
-
   function resolveItems(ids) {
     return (ids || []).map(id => products.find(p => p.id === id)).filter(Boolean)
   }
@@ -197,9 +195,10 @@ export default function HomePage({ store, onManageGroups }) {
   const amProducts = selectedGroup ? resolveItems(selectedGroup.dayItems) : []
   const pmProducts = selectedGroup ? resolveItems(selectedGroup.nightItems) : []
 
-  const allGroupProductIds = new Set([...amProducts, ...pmProducts].map(p => p.id))
-  const doneRoutine = [...allGroupProductIds].filter(id => usedTodaySet.has(id)).length
-  const totalRoutine = allGroupProductIds.size
+  const amDone = amProducts.filter(p => isUsedOnDate(p.usageLog, today, 'am')).length
+  const pmDone = pmProducts.filter(p => isUsedOnDate(p.usageLog, today, 'pm')).length
+  const doneRoutine = amDone + pmDone
+  const totalRoutine = amProducts.length + pmProducts.length
   const allDone = totalRoutine > 0 && doneRoutine === totalRoutine
 
   // Before noon → collapse PM; noon onwards → collapse AM
@@ -336,7 +335,7 @@ export default function HomePage({ store, onManageGroups }) {
           <RoutineSection
             title="🌤 早上保養"
             products={amProducts}
-            usedToday={usedTodaySet}
+            today={today}
             onToggle={toggleProductUseToday}
             emptyMsg="這個組別還沒有設定早上步驟"
             defaultCollapsed={isEvening}
@@ -345,7 +344,7 @@ export default function HomePage({ store, onManageGroups }) {
           <RoutineSection
             title="🌙 晚上保養"
             products={pmProducts}
-            usedToday={usedTodaySet}
+            today={today}
             onToggle={toggleProductUseToday}
             emptyMsg="這個組別還沒有設定晚上步驟"
             defaultCollapsed={!isEvening}
