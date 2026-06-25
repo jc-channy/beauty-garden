@@ -25,12 +25,19 @@ export function getWeekDates(offset = 0) {
   })
 }
 
-// usageLog entries: 'YYYY-MM-DD' (old, = both AM+PM) or 'YYYY-MM-DD-am' / 'YYYY-MM-DD-pm'
+// usageLog entries: 'YYYY-MM-DD' (old format) or 'YYYY-MM-DD-am' / 'YYYY-MM-DD-pm'
+// Backward-compat: old plain-date entries count as AM only (not PM)
 export function isUsedOnDate(log, date, section) {
   const entries = log || []
-  if (entries.includes(date)) return true          // backward-compat: plain date = both
-  if (!section) return entries.some(e => e.startsWith(date + '-'))
-  return entries.includes(`${date}-${section}`)
+  if (section) {
+    // New format check
+    if (entries.includes(`${date}-${section}`)) return true
+    // Old format: plain date → treated as AM only
+    if (section === 'am' && entries.includes(date)) return true
+    return false
+  }
+  // No section: any entry for this date (for streak / stats)
+  return entries.includes(date) || entries.some(e => e.startsWith(date + '-'))
 }
 
 function dayOfWeekFor(dateStr) {
