@@ -44,9 +44,13 @@ function HabitTracker({ products, onToggle, amOrder, pmOrder, onReorder }) {
     return Math.max(0, children.length - 1)
   }
 
+  // Keep section in ref so event handlers always see latest value without re-registering
+  const sectionRef = useRef(section)
+  useEffect(() => { sectionRef.current = section }, [section])
+  const onReorderRef = useRef(onReorder)
+  useEffect(() => { onReorderRef.current = onReorder }, [onReorder])
+
   useEffect(() => {
-    const el = listRef.current
-    if (!el) return
     function onTouchMove(e) {
       if (dragStateRef.current.dragIndex === null) return
       e.preventDefault()
@@ -61,19 +65,19 @@ function HabitTracker({ products, onToggle, amOrder, pmOrder, onReorder }) {
         const next = [...sortedRef.current]
         const [moved] = next.splice(di, 1)
         next.splice(oi, 0, moved)
-        onReorder(section, next.map(p => p.id))
+        onReorderRef.current(sectionRef.current, next.map(p => p.id))
       }
       dragStateRef.current = { dragIndex: null, overIndex: null }
       setDragIndex(null)
       setOverIndex(null)
     }
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    el.addEventListener('touchend', onTouchEnd)
+    document.addEventListener('touchmove', onTouchMove, { passive: false })
+    document.addEventListener('touchend', onTouchEnd)
     return () => {
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('touchend', onTouchEnd)
+      document.removeEventListener('touchmove', onTouchMove)
+      document.removeEventListener('touchend', onTouchEnd)
     }
-  }, [section])
+  }, [])
 
   function isPerfect(dateStr) {
     if (!sorted.length) return false
@@ -150,6 +154,7 @@ function HabitTracker({ products, onToggle, amOrder, pmOrder, onReorder }) {
                     {/* Drag handle */}
                     <div
                       onTouchStart={e => {
+                        e.preventDefault()
                         e.stopPropagation()
                         dragStateRef.current = { dragIndex: index, overIndex: index }
                         setDragIndex(index)

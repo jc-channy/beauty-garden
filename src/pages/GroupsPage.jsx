@@ -22,16 +22,15 @@ function DraggableList({ items, renderItem, onReorder }) {
   }
 
   function handleTouchStart(e, index) {
+    e.preventDefault()   // cancel scroll gesture before it starts
     e.stopPropagation()
     dragStateRef.current = { dragIndex: index, overIndex: index }
     setDragIndex(index)
     setOverIndex(index)
   }
 
-  // Attach touchmove as non-passive so e.preventDefault() stops page scroll during drag
+  // Attach to document so scroll container never intercepts mid-drag
   useEffect(() => {
-    const el = listRef.current
-    if (!el) return
     function onTouchMove(e) {
       if (dragStateRef.current.dragIndex === null) return
       e.preventDefault()
@@ -52,11 +51,11 @@ function DraggableList({ items, renderItem, onReorder }) {
       setDragIndex(null)
       setOverIndex(null)
     }
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    el.addEventListener('touchend', onTouchEnd)
+    document.addEventListener('touchmove', onTouchMove, { passive: false })
+    document.addEventListener('touchend', onTouchEnd)
     return () => {
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('touchend', onTouchEnd)
+      document.removeEventListener('touchmove', onTouchMove)
+      document.removeEventListener('touchend', onTouchEnd)
     }
   }, [])
 
