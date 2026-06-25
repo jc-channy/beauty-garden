@@ -46,22 +46,25 @@ export default function TabBar({ current, onChange }) {
               justifyContent: 'center',
             }}
           >
+            {/* Fixed-size box so all icons occupy identical space */}
             <span style={{
-              fontSize: 24,
-              lineHeight: 1,
+              width: 28, height: 28,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 22,
               color: active ? '#9A7A5A' : '#C4B0A0',
-              display: 'block',
               transition: 'color 0.2s, transform 0.2s',
               transform: active ? 'scale(1.1)' : 'scale(1)',
+              flexShrink: 0,
             }}>
               {tab.icon}
             </span>
             <span style={{
-              fontSize: 13,
+              fontSize: 12,
               color: active ? '#9A7A5A' : '#C4B0A0',
               fontWeight: active ? 500 : 400,
               transition: 'color 0.2s',
               lineHeight: 1,
+              marginTop: 1,
             }}>
               {tab.label}
             </span>
