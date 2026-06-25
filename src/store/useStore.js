@@ -236,7 +236,18 @@ function groupToRow(g, userId) {
 
 // ── Hook ──────────────────────────────────────────────────────
 export function useStore(userId) {
-  const [state, setState] = useState(INITIAL_STATE)
+  const [state, _setStateRaw] = useState(INITIAL_STATE)
+  // stateRef always mirrors state synchronously — lets us read current state
+  // outside of setState updaters (avoids React 18 StrictMode double-invoke bug)
+  const stateRef = useRef(INITIAL_STATE)
+  const setState = useCallback((updater) => {
+    _setStateRaw(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      stateRef.current = next
+      return next
+    })
+  }, [])
+
   const [loading, setLoading] = useState(true)
   // Track in-flight mutations so visibilitychange doesn't overwrite optimistic state
   const mutating = useRef(0)
@@ -308,27 +319,35 @@ export function useStore(userId) {
   const toggleProductUseToday = useCallback(async (productId, section) => {
     const today = todayKey()
     const key = section ? `${today}-${section}` : today
-    let prevProducts = null
-    let newLog
-    setState(prev => {
-      prevProducts = prev.products
-      const products = prev.products.map(p => {
-        if (p.id !== productId) return p
-        const log = p.usageLog || []
-        const has = log.includes(key)
-        newLog = has ? log.filter(d => d !== key) : [...log, key]
-        return { ...p, usageLog: newLog }
-      })
-      return { ...prev, products }
-    })
-    if (newLog === undefined) return
+
+    // Read current log from stateRef (not inside setState updater)
+    // This avoids React 18 StrictMode double-invoke bug where newLog gets reversed
+    const currentProduct = stateRef.current.products.find(p => p.id === productId)
+    if (!currentProduct) return
+    const prevLog = currentProduct.usageLog || []
+    const newLog = prevLog.includes(key)
+      ? prevLog.filter(d => d !== key)
+      : [...prevLog, key]
+
+    setState(prev => ({
+      ...prev,
+      products: prev.products.map(p =>
+        p.id === productId ? { ...p, usageLog: newLog } : p
+      ),
+    }))
+
     mutating.current++
     try {
       const { error } = await supabase.from('products').update({ usage_log: newLog }).eq('id', productId)
       if (error) throw error
     } catch (e) {
       console.error('Toggle usage failed:', e)
-      if (prevProducts) setState(prev => ({ ...prev, products: prevProducts }))
+      setState(prev => ({
+        ...prev,
+        products: prev.products.map(p =>
+          p.id === productId ? { ...p, usageLog: prevLog } : p
+        ),
+      }))
     } finally {
       mutating.current--
     }
