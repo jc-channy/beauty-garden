@@ -255,6 +255,7 @@ function GroupCard({ group, products, onUpdate, onDelete, groupDays, setGroupTar
           <SectionBlock
             title="🌤 早上"
             items={dayProducts}
+            sectionType="am"
             onRemove={id => removeFromSection('day', id)}
             onAdd={() => setPicker('day')}
             onReorder={items => reorderSection('day', items)}
@@ -264,6 +265,7 @@ function GroupCard({ group, products, onUpdate, onDelete, groupDays, setGroupTar
           <SectionBlock
             title="🌙 晚上"
             items={nightProducts}
+            sectionType="pm"
             onRemove={id => removeFromSection('night', id)}
             onAdd={() => setPicker('night')}
             onReorder={items => reorderSection('night', items)}
@@ -339,11 +341,26 @@ function GroupCard({ group, products, onUpdate, onDelete, groupDays, setGroupTar
   )
 }
 
-function SectionBlock({ title, items, onRemove, onAdd, onReorder }) {
+function SectionBlock({ title, items, sectionType, onRemove, onAdd, onReorder }) {
+  const mismatchCount = sectionType
+    ? items.filter(p => p.timeOfDay && (
+        (sectionType === 'am' && p.timeOfDay === 'pm') ||
+        (sectionType === 'pm' && p.timeOfDay === 'am')
+      )).length
+    : 0
+
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{title}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{title}</div>
+          {mismatchCount > 0 && (
+            <span style={{
+              fontSize: 10, padding: '1px 6px', borderRadius: 6,
+              background: '#FFF3DC', color: '#A07020', fontWeight: 500,
+            }}>⚠️ {mismatchCount} 個時段不符</span>
+          )}
+        </div>
         <button onClick={onAdd} style={{
           fontSize: 12, color: '#7AAA6A', background: 'none', border: 'none',
           cursor: 'pointer', padding: '2px 6px',
@@ -362,6 +379,10 @@ function SectionBlock({ title, items, onRemove, onAdd, onReorder }) {
           onReorder={onReorder}
           renderItem={(p) => {
             const name = p.nickname || p.name || p.brand || '未命名'
+            const mismatch = sectionType && p.timeOfDay && (
+              (sectionType === 'am' && p.timeOfDay === 'pm') ||
+              (sectionType === 'pm' && p.timeOfDay === 'am')
+            )
             return (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {p.imagePreview ? (
@@ -371,10 +392,17 @@ function SectionBlock({ title, items, onRemove, onAdd, onReorder }) {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-                  {p.category && (() => {
-                    const c = CATEGORY_COLORS[p.category] || { bg: '#EEE', text: '#666' }
-                    return <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, display: 'inline-block', marginTop: 2 }}>{p.category}</span>
-                  })()}
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 2 }}>
+                    {p.category && (() => {
+                      const c = CATEGORY_COLORS[p.category] || { bg: '#EEE', text: '#666' }
+                      return <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500 }}>{p.category}</span>
+                    })()}
+                    {mismatch && (
+                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: '#FFF3DC', color: '#A07020', fontWeight: 500 }}>
+                        {p.timeOfDay === 'pm' ? '🌙 建議晚上' : '☀️ 建議白天'}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <button onClick={() => onRemove(p.id)} style={{
                   background: 'none', border: 'none', cursor: 'pointer',

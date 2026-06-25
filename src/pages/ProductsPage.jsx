@@ -1,7 +1,12 @@
 import React, { useState, useRef } from 'react'
 import { todayKey, CATEGORIES, EFFECTS, CATEGORY_COLORS, EFFECT_COLORS } from '../store/useStore.js'
 
-const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
+const CAUTION_PRESETS = [
+  '使用後請加強防曬',
+  '避免白天使用',
+  '避免與A醇同時使用',
+  '避免與酸類同時使用',
+]
 
 // ── Image resize ──────────────────────────────────────────────
 function resizeImage(file, maxPx = 600, quality = 0.82) {
@@ -109,7 +114,10 @@ function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
     category:     product?.category     || '',
     effects:      product?.effects      || [],
     imagePreview: product?.imagePreview || null,
+    timeOfDay:    product?.timeOfDay    || '',
+    caution:      product?.caution      || [],
   })
+  const [cautionInput, setCautionInput] = useState('')
 
   async function handleFile(file) {
     if (!file) return
@@ -135,6 +143,8 @@ function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
       category:     form.category,
       effects:      form.effects,
       imagePreview: form.imagePreview,
+      timeOfDay:    form.timeOfDay,
+      caution:      form.caution,
     })
     onClose()
   }
@@ -212,6 +222,88 @@ function ProductFormModal({ product, products, onClose, onSave, onDelete }) {
             </button>
           ))}
         </div>
+
+        {/* Time of day */}
+        <label style={sectionLabel}>使用時段</label>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
+          {[
+            { key: '',   label: '不限' },
+            { key: 'am', label: '☀️ 白天' },
+            { key: 'pm', label: '🌙 晚上' },
+          ].map(opt => {
+            const sel = form.timeOfDay === opt.key
+            return (
+              <button key={opt.key} onClick={() => setForm(f => ({ ...f, timeOfDay: opt.key }))} style={{
+                flex: 1, padding: '8px 0', borderRadius: 10, border: '0.5px solid', fontSize: 13, cursor: 'pointer',
+                borderColor: sel ? '#C8A87A' : 'var(--border-soft)',
+                background: sel ? '#F2E6D9' : 'var(--bg-surface)',
+                color: sel ? '#8A6A40' : 'var(--text-muted)',
+                fontWeight: sel ? 500 : 400,
+              }}>{opt.label}</button>
+            )
+          })}
+        </div>
+
+        {/* Caution notes */}
+        <label style={sectionLabel}>注意事項（選填）</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10 }}>
+          {CAUTION_PRESETS.map(preset => {
+            const sel = form.caution.includes(preset)
+            return (
+              <button key={preset} onClick={() => setForm(f => ({
+                ...f,
+                caution: sel ? f.caution.filter(c => c !== preset) : [...f.caution, preset],
+              }))} style={{
+                padding: '5px 11px', borderRadius: 20, border: '0.5px solid', fontSize: 12, cursor: 'pointer',
+                borderColor: sel ? '#D4924A' : 'var(--border-soft)',
+                background: sel ? '#FEF0E0' : 'var(--bg-surface)',
+                color: sel ? '#8A5020' : 'var(--text-muted)',
+                fontWeight: sel ? 500 : 400,
+                marginBottom: 3,
+              }}>{sel ? '✓ ' : ''}{preset}</button>
+            )
+          })}
+        </div>
+        {/* Custom caution input */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 22 }}>
+          <input
+            type="text"
+            value={cautionInput}
+            onChange={e => setCautionInput(e.target.value)}
+            placeholder="自訂注意事項…"
+            onKeyDown={e => {
+              if (e.key === 'Enter' && cautionInput.trim()) {
+                setForm(f => ({ ...f, caution: [...f.caution, cautionInput.trim()] }))
+                setCautionInput('')
+              }
+            }}
+          />
+          <button
+            onClick={() => {
+              if (cautionInput.trim()) {
+                setForm(f => ({ ...f, caution: [...f.caution, cautionInput.trim()] }))
+                setCautionInput('')
+              }
+            }}
+            style={{
+              flexShrink: 0, padding: '0 14px', borderRadius: 10,
+              background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
+              fontSize: 18, cursor: 'pointer', color: 'var(--text-muted)',
+            }}
+          >＋</button>
+        </div>
+        {/* Show added custom caution items */}
+        {form.caution.filter(c => !CAUTION_PRESETS.includes(c)).map(c => (
+          <div key={c} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '4px 10px', borderRadius: 20, marginRight: 5, marginBottom: 5,
+            background: '#FEF0E0', border: '0.5px solid #D4924A', fontSize: 12, color: '#8A5020',
+          }}>
+            {c}
+            <button onClick={() => setForm(f => ({ ...f, caution: f.caution.filter(x => x !== c) }))}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#D4924A', fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+          </div>
+        ))}
 
         <button className="btn-primary" onClick={handleSave} disabled={!canSave}
           style={{ opacity: canSave ? 1 : 0.5 }}>
@@ -305,18 +397,29 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
               {subLine && (
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 5 }}>{subLine}</div>
               )}
-              {/* Effect tags with individual colors */}
-              {(product.effects || []).length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                  {(product.effects || []).slice(0, 3).map(e => {
-                    const ec = EFFECT_COLORS[e] || { bg: '#EEF4EC', text: '#5A7A52' }
-                    return (
-                      <span key={e} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 6, background: ec.bg, color: ec.text }}>{e}</span>
-                    )
-                  })}
-                  {(product.effects || []).length > 3 && (
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>+{product.effects.length - 3}</span>
-                  )}
+              {/* Effect tags + time-of-day badge */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                {(product.effects || []).slice(0, 3).map(e => {
+                  const ec = EFFECT_COLORS[e] || { bg: '#EEF4EC', text: '#5A7A52' }
+                  return (
+                    <span key={e} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 6, background: ec.bg, color: ec.text }}>{e}</span>
+                  )
+                })}
+                {(product.effects || []).length > 3 && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>+{product.effects.length - 3}</span>
+                )}
+                {product.timeOfDay === 'am' && (
+                  <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 6, background: '#FFF8E0', color: '#9A6A10', fontWeight: 500 }}>☀️ 白天</span>
+                )}
+                {product.timeOfDay === 'pm' && (
+                  <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 6, background: '#EEEAFF', color: '#5A3A90', fontWeight: 500 }}>🌙 晚上</span>
+                )}
+              </div>
+              {/* Caution hint */}
+              {(product.caution || []).length > 0 && (
+                <div style={{ fontSize: 11, color: '#9A6010', marginTop: 4, display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <span>⚠️</span>
+                  <span>{product.caution[0]}{product.caution.length > 1 ? ` +${product.caution.length - 1}` : ''}</span>
                 </div>
               )}
             </div>

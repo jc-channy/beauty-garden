@@ -173,6 +173,8 @@ function rowToProduct(row) {
     usageLog: row.usage_log || [],
     imagePreview: row.image_preview || null,
     addedAt: row.added_at || '',
+    timeOfDay: row.time_of_day || '',   // 'am' | 'pm' | ''
+    caution: row.caution || [],         // string[]
   }
 }
 
@@ -191,6 +193,8 @@ function productToRow(p, userId) {
     usage_log: p.usageLog || [],
     image_preview: p.imagePreview || '',
     added_at: p.addedAt || '',
+    time_of_day: p.timeOfDay || '',
+    caution: p.caution || [],
   }
 }
 
@@ -318,6 +322,8 @@ export function useStore(userId) {
       targetDays: [],
       timesPerWeek: 3,
       usageLog: [],
+      timeOfDay: '',
+      caution: [],
       imagePreview: null,
       ...product,
     }

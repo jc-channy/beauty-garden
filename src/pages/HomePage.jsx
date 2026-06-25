@@ -18,11 +18,16 @@ function formatHeader() {
   return `${d.getFullYear()}.${mo}.${dy} 星期${days[d.getDay()]}`
 }
 
-function CheckItem({ product, usedToday, onToggle }) {
+function CheckItem({ product, usedToday, onToggle, section }) {
   const displayName = product.nickname || product.name || product.brand || '未命名'
   const subName = product.nickname
     ? [product.brand, product.name].filter(Boolean).join(' ')
     : ''
+
+  // Time-of-day mismatch: PM product in AM section, or AM product in PM section
+  const mismatch = section && product.timeOfDay &&
+    ((section === 'am' && product.timeOfDay === 'pm') ||
+     (section === 'pm' && product.timeOfDay === 'am'))
 
   return (
     <div
@@ -31,7 +36,7 @@ function CheckItem({ product, usedToday, onToggle }) {
         padding: '10px 14px',
         background: usedToday ? '#F6FAF5' : 'var(--bg-card)',
         borderRadius: 14,
-        border: `0.5px solid ${usedToday ? '#D0DFCA' : 'var(--border-soft)'}`,
+        border: `0.5px solid ${mismatch ? '#E8C080' : usedToday ? '#D0DFCA' : 'var(--border-soft)'}`,
         marginBottom: 6,
         transition: 'all 0.2s',
         cursor: 'pointer',
@@ -78,13 +83,27 @@ function CheckItem({ product, usedToday, onToggle }) {
             )
           })()}
           {subName && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{subName}</span>}
+          {mismatch && (
+            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', fontWeight: 500 }}>
+              {product.timeOfDay === 'pm' ? '🌙 建議晚上用' : '☀️ 建議白天用'}
+            </span>
+          )}
         </div>
+        {/* Caution hint — show first note */}
+        {(product.caution || []).length > 0 && !usedToday && (
+          <div style={{ fontSize: 11, color: '#9A6010', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span>⚠️</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {product.caution[0]}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function RoutineSection({ title, products, usedToday, onToggle, emptyMsg, defaultCollapsed }) {
+function RoutineSection({ title, products, usedToday, onToggle, emptyMsg, defaultCollapsed, section }) {
   const [collapsed, setCollapsed] = React.useState(defaultCollapsed ?? false)
   const done = products.filter(p => usedToday.has(p.id)).length
   const allDone = products.length > 0 && done === products.length
@@ -135,6 +154,7 @@ function RoutineSection({ title, products, usedToday, onToggle, emptyMsg, defaul
               product={p}
               usedToday={usedToday.has(p.id)}
               onToggle={onToggle}
+              section={section}
             />
           ))
         )
@@ -320,6 +340,7 @@ export default function HomePage({ store, onManageGroups }) {
             onToggle={toggleProductUseToday}
             emptyMsg="這個組別還沒有設定早上步驟"
             defaultCollapsed={isEvening}
+            section="am"
           />
           <RoutineSection
             title="🌙 晚上保養"
@@ -328,6 +349,7 @@ export default function HomePage({ store, onManageGroups }) {
             onToggle={toggleProductUseToday}
             emptyMsg="這個組別還沒有設定晚上步驟"
             defaultCollapsed={!isEvening}
+            section="pm"
           />
         </>
       )}
