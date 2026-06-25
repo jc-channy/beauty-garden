@@ -2,8 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase.js'
 
 // ── Date helpers ──────────────────────────────────────────────
+// Use local time (not UTC) — avoids wrong-day bugs for UTC+8 users
+export function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 export function todayKey() {
-  return new Date().toISOString().slice(0, 10)
+  return localDateStr(new Date())
 }
 
 export function getWeekDates() {
@@ -16,7 +21,7 @@ export function getWeekDates() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday)
     d.setDate(d.getDate() + i)
-    return d.toISOString().slice(0, 10)
+    return localDateStr(d)
   })
 }
 
@@ -67,7 +72,7 @@ export function getStreak(products) {
   const d = new Date()
   d.setDate(d.getDate() - 1)
   while (streak < 365) {
-    const key = d.toISOString().slice(0, 10)
+    const key = localDateStr(d)
     const anyUsed = products.some(p => (p.usageLog || []).includes(key))
     if (!anyUsed) break
     streak++
@@ -289,10 +294,12 @@ export function useStore(userId) {
   }
 
   // ── Products ───────────────────────────────────────────────
-  const toggleProductUseToday = useCallback((productId) => {
+  const toggleProductUseToday = useCallback(async (productId) => {
     const today = todayKey()
+    let prevProducts = null
     let newLog
     setState(prev => {
+      prevProducts = prev.products
       const products = prev.products.map(p => {
         if (p.id !== productId) return p
         const log = p.usageLog || []
@@ -302,11 +309,17 @@ export function useStore(userId) {
       })
       return { ...prev, products }
     })
-    setTimeout(() => {
-      if (newLog !== undefined) {
-        supabase.from('products').update({ usage_log: newLog }).eq('id', productId)
-      }
-    }, 0)
+    if (newLog === undefined) return
+    mutating.current++
+    try {
+      const { error } = await supabase.from('products').update({ usage_log: newLog }).eq('id', productId)
+      if (error) throw error
+    } catch (e) {
+      console.error('Toggle usage failed:', e)
+      if (prevProducts) setState(prev => ({ ...prev, products: prevProducts }))
+    } finally {
+      mutating.current--
+    }
   }, [])
 
   const addProduct = useCallback(async (product) => {

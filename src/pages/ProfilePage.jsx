@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { getStreak, getTotalStats, getMonthlyRate, CATEGORY_COLORS } from '../store/useStore.js'
+import { getStreak, getTotalStats, getMonthlyRate, CATEGORY_COLORS, localDateStr } from '../store/useStore.js'
 import { supabase } from '../lib/supabase.js'
 
 // ── Weekly habit tracker ──────────────────────────────────────
@@ -14,14 +14,14 @@ function getWeekDates(offset = 0) {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(mon)
     d.setDate(mon.getDate() + i)
-    return d.toISOString().slice(0, 10)
+    return localDateStr(d)
   })
 }
 
 function HabitTracker({ products }) {
   const [weekOffset, setWeekOffset] = useState(0)
   const weekDates = getWeekDates(weekOffset)
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = localDateStr(new Date())
   const DOW = ['一', '二', '三', '四', '五', '六', '日']
 
   const mon = weekDates[0]
