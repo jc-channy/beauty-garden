@@ -29,7 +29,7 @@
 
   --font-base: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --tab-height: 64px;
+  --tab-height: 76px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 

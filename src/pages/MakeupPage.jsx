@@ -1,6 +1,15 @@
 import React, { useState } from 'react'
 
-// ── Makeup routine data ───────────────────────────────────────
+// Warm palette — cream → apricot → honey → mushroom → terracotta → rose
+const SECTION_COLORS = [
+  { bg: '#F2E6D9', text: '#8A6040' },
+  { bg: '#F0D4B8', text: '#8A5030' },
+  { bg: '#F0D898', text: '#7A5018' },
+  { bg: '#E8C8A8', text: '#7A4828' },
+  { bg: '#E8B898', text: '#7A3820' },
+  { bg: '#F0C0A0', text: '#8A3820' },
+]
+
 const ROUTINES = {
   full: {
     label: '完整版',
@@ -142,15 +151,15 @@ const ROUTINES = {
   },
 }
 
-function StepItem({ step }) {
+function StepItem({ step, color }) {
   return (
     <div style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border-soft)' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <div style={{
           width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-          background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)',
+          background: color.bg,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 500, color: 'var(--text-muted)',
+          fontSize: 11, fontWeight: 500, color: color.text,
           marginTop: 1,
         }}>{step.step}</div>
         <div style={{ flex: 1 }}>
@@ -172,8 +181,6 @@ function StepItem({ step }) {
 export default function MakeupPage({ onBack }) {
   const [activeKey, setActiveKey] = useState('full')
   const routine = ROUTINES[activeKey]
-
-  const totalSteps = routine.sections.reduce((sum, s) => sum + s.steps.length, 0)
 
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 14 }}>
@@ -212,22 +219,28 @@ export default function MakeupPage({ onBack }) {
       </div>
 
       {/* Sections */}
-      {routine.sections.map((section, si) => (
-        <div key={si} style={{ marginBottom: 20 }}>
-          <div style={{
-            fontSize: 11, fontWeight: 500, letterSpacing: '0.1em',
-            color: 'var(--text-muted)', textTransform: 'uppercase',
-            marginBottom: 4,
-          }}>
-            {section.title}
+      {routine.sections.map((section, si) => {
+        const color = SECTION_COLORS[si % SECTION_COLORS.length]
+        return (
+          <div key={si} style={{ marginBottom: 20 }}>
+            {/* Colored section tag */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '3px 12px', borderRadius: 20,
+              background: color.bg, color: color.text,
+              fontSize: 11, fontWeight: 500,
+              marginBottom: 8,
+            }}>
+              {section.title}
+            </div>
+            <div className="card" style={{ padding: '0 14px' }}>
+              {section.steps.map((step, i) => (
+                <StepItem key={i} step={step} color={color} />
+              ))}
+            </div>
           </div>
-          <div className="card" style={{ padding: '0 14px' }}>
-            {section.steps.map((step, i) => (
-              <StepItem key={i} step={step} />
-            ))}
-          </div>
-        </div>
-      ))}
+        )
+      })}
 
       <div style={{ height: 8 }} />
     </div>

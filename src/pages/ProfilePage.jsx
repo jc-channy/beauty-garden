@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { getStreak, getTotalStats, getMonthlyRate, CATEGORY_COLORS, localDateStr, getWeekDates, isUsedOnDate } from '../store/useStore.js'
+import { CATEGORY_COLORS, localDateStr, getWeekDates, isUsedOnDate } from '../store/useStore.js'
 import { supabase } from '../lib/supabase.js'
 
 // ── Habit tracker (read-only) ──────────────────────────────────
@@ -68,7 +68,7 @@ function HabitTracker({ products, amOrder, pmOrder }) {
         <div style={{ overflowX: 'auto' }}>
           {/* Column headers */}
           <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 6, paddingLeft: 4 }}>
-            <div style={{ width: 80, minWidth: 80 }} />
+            <div style={{ width: 110, minWidth: 110 }} />
             {weekDates.map((d, i) => {
               const isToday = d === todayStr
               return (
@@ -88,12 +88,8 @@ function HabitTracker({ products, amOrder, pmOrder }) {
               return (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', paddingBottom: 5, paddingLeft: 4 }}>
                   {/* Product info */}
-                  <div style={{ width: 80, minWidth: 80, display: 'flex', alignItems: 'center', gap: 5, paddingRight: 6 }}>
-                    {p.imagePreview
-                      ? <img src={p.imagePreview} style={{ width: 20, height: 20, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }} />
-                      : <div style={{ width: 20, height: 20, borderRadius: 5, background: catColor?.bg || 'var(--bg-surface)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>🧴</div>
-                    }
-                    <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                  <div style={{ width: 110, minWidth: 110, paddingRight: 6 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{name}</span>
                   </div>
                   {/* Day cells — read-only */}
                   {weekDates.map(d => {
@@ -120,7 +116,7 @@ function HabitTracker({ products, amOrder, pmOrder }) {
 
           {/* Perfect row */}
           <div style={{ display: 'flex', alignItems: 'center', paddingTop: 4, paddingLeft: 4 }}>
-            <div style={{ width: 80, minWidth: 80, fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, paddingRight: 6 }}>全部完成</div>
+            <div style={{ width: 110, minWidth: 110, fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, paddingRight: 6 }}>全部完成</div>
             {weekDates.map(d => {
               const perfect = isPerfect(d)
               return (
@@ -160,14 +156,9 @@ export default function ProfilePage({ store }) {
   const [userName, setUserName] = useState(settings.userName)
   const [saved, setSaved]       = useState(false)
 
-  // Sync when Supabase data loads (async after mount)
   React.useEffect(() => {
     setUserName(settings.userName)
   }, [settings.userName])
-
-  const streak = getStreak(products)
-  const { activeDays, totalUses } = getTotalStats(products)
-  const monthlyRate = getMonthlyRate(products)
 
   function handleSave() {
     updateSettings({ userName })
@@ -181,27 +172,6 @@ export default function ProfilePage({ store }) {
         <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>紀錄</div>
       </div>
 
-      {/* Stats */}
-      <Section title="使用紀錄">
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[
-            { label: '連續天數', value: streak, unit: '天' },
-            { label: '活躍天數', value: activeDays, unit: '天' },
-            { label: '本月完成率', value: `${monthlyRate}%`, unit: '' },
-          ].map(item => (
-            <div key={item.label} style={{
-              flex: 1, background: 'var(--bg-surface)', borderRadius: 'var(--radius-md)',
-              padding: '14px 10px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>
-                {item.value}{item.unit && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400, marginLeft: 2 }}>{item.unit}</span>}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{item.label}</div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
       {/* Habit tracker — read-only */}
       <Section title="保養打卡紀錄">
         <div className="card" style={{ padding: '14px' }}>
@@ -212,26 +182,6 @@ export default function ProfilePage({ store }) {
           />
         </div>
       </Section>
-
-      {/* Overview */}
-      <Section title="目前設定">
-        <div className="card" style={{ padding: '12px 14px' }}>
-          {[
-            { label: '保養品總數', count: products.length, emoji: '🧴' },
-            { label: '保養組別數', count: (state.routineGroups || []).length, emoji: '🌸' },
-          ].map((item, i, arr) => (
-            <div key={item.label} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
-              borderBottom: i < arr.length - 1 ? '0.5px solid var(--border-soft)' : 'none',
-            }}>
-              <span style={{ fontSize: 16 }}>{item.emoji}</span>
-              <span style={{ flex: 1, fontSize: 14, color: 'var(--text-secondary)' }}>{item.label}</span>
-              <span style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>{item.count}</span>
-            </div>
-          ))}
-        </div>
-      </Section>
-
 
       {/* User name */}
       <Section title="個人設定">

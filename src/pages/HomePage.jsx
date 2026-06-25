@@ -131,19 +131,15 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
     } else if (dx < -44) {
       // Swipe left → unmark (if currently done)
       if (usedToday) onToggle()
-    } else {
-      // Short tap → toggle
-      onToggle()
     }
+    // Short tap → no action (swipe only)
   }
 
-  function handleClick() {
-    // Ignore if already handled by touch
+  function handleClick(e) {
+    // Swipe gesture already handled by touch — suppress click
     if (touchRef.current?.handled) {
       touchRef.current = null
-      return
     }
-    onToggle()
   }
 
   // Visual swipe offset clamped to ±60px
