@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase.js'
 
 // ── Date helpers ──────────────────────────────────────────────
-// Use local time (not UTC) — avoids wrong-day bugs for UTC+8 users
 export function localDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
@@ -26,17 +25,13 @@ export function getWeekDates(offset = 0) {
 }
 
 // usageLog entries: 'YYYY-MM-DD' (old format) or 'YYYY-MM-DD-am' / 'YYYY-MM-DD-pm'
-// Backward-compat: old plain-date entries count as AM only (not PM)
 export function isUsedOnDate(log, date, section) {
   const entries = log || []
   if (section) {
-    // New format check
     if (entries.includes(`${date}-${section}`)) return true
-    // Old format: plain date → treated as AM only
     if (section === 'am' && entries.includes(date)) return true
     return false
   }
-  // No section: any entry for this date (for streak / stats)
   return entries.includes(date) || entries.some(e => e.startsWith(date + '-'))
 }
 
@@ -127,7 +122,6 @@ export const CATEGORIES = [
   '面膜','防曬','唇部保養',
 ]
 
-// Spring Meadow-inspired palette for category tags
 export const CATEGORY_COLORS = {
   '卸妝':    { bg: '#F8DDCD', text: '#8A4030' },
   '洗面乳':  { bg: '#AECBB8', text: '#2E6647' },
@@ -170,13 +164,25 @@ export const EFFECT_COLORS = {
 }
 
 // ── Data model ────────────────────────────────────────────────
-// Product: { id, nickname, brand, name, category, effects, frequencyMode, targetDays, timesPerWeek, usageLog, imagePreview, addedAt }
-// RoutineGroup: { id, name, dayItems: string[], nightItems: string[], sortOrder }
-
 const INITIAL_STATE = {
   products: [],
   routineGroups: [],
-  settings: { userName: '', trackerAmOrder: [], trackerPmOrder: [] },
+  settings: {
+    userName: '',
+    trackerAmOrder: [],
+    trackerPmOrder: [],
+    // Body / water / supplement settings
+    supplementNames: [],
+    waterGoalMl: 2000,
+    waterQuickAmounts: [200, 350, 500],
+    bodyGoalWeight: null,
+    bodyGoalFat: null,
+  },
+  // Daily logs keyed by date string 'YYYY-MM-DD'
+  bodyLogs: {},         // { date: { weight, bodyFat } }
+  waterLogs: {},        // { date: totalMl }
+  exercises: [],        // [{ id, date, type, subType, durationMin, intensity }]
+  supplementCheckins: {}, // { date: [name, name, ...] }
 }
 
 // ── DB mapping ────────────────────────────────────────────────
@@ -194,8 +200,8 @@ function rowToProduct(row) {
     usageLog: row.usage_log || [],
     imagePreview: row.image_preview || null,
     addedAt: row.added_at || '',
-    timeOfDay: row.time_of_day || '',   // 'am' | 'pm' | ''
-    caution: row.caution || [],         // string[]
+    timeOfDay: row.time_of_day || '',
+    caution: row.caution || [],
   }
 }
 
@@ -241,11 +247,23 @@ function groupToRow(g, userId) {
   }
 }
 
+function rowToSettings(row) {
+  if (!row) return INITIAL_STATE.settings
+  return {
+    userName: row.user_name || '',
+    trackerAmOrder: row.tracker_am_order || [],
+    trackerPmOrder: row.tracker_pm_order || [],
+    supplementNames: row.supplement_names || [],
+    waterGoalMl: row.water_goal_ml || 2000,
+    waterQuickAmounts: row.water_quick_amounts || [200, 350, 500],
+    bodyGoalWeight: row.body_goal_weight ?? null,
+    bodyGoalFat: row.body_goal_fat ?? null,
+  }
+}
+
 // ── Hook ──────────────────────────────────────────────────────
 export function useStore(userId) {
   const [state, _setStateRaw] = useState(INITIAL_STATE)
-  // stateRef always mirrors state synchronously — lets us read current state
-  // outside of setState updaters (avoids React 18 StrictMode double-invoke bug)
   const stateRef = useRef(INITIAL_STATE)
   const setState = useCallback((updater) => {
     _setStateRaw(prev => {
@@ -256,10 +274,8 @@ export function useStore(userId) {
   }, [])
 
   const [loading, setLoading] = useState(true)
-  // Track in-flight mutations so visibilitychange doesn't overwrite optimistic state
   const mutating = useRef(0)
 
-  // groupDays: { [groupId]: number[] } — stored in localStorage (bypasses schema cache issue)
   const [groupDays, setGroupDaysState] = useState(() => {
     try { return JSON.parse(localStorage.getItem('bg_groupDays') || '{}') } catch { return {} }
   })
@@ -275,8 +291,6 @@ export function useStore(userId) {
     if (userId) loadData()
   }, [userId])
 
-  // Re-fetch when tab becomes visible again (cross-device sync)
-  // Skip if a mutation is in-flight to avoid overwriting optimistic state
   useEffect(() => {
     if (!userId) return
     function handleVisibility() {
@@ -291,17 +305,27 @@ export function useStore(userId) {
   async function loadData({ silent = false } = {}) {
     if (!silent) setLoading(true)
     try {
+      const ninetyDaysAgo = localDateStr(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000))
+      const thirtyDaysAgo = localDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
+
       const [
         { data: productRows },
         { data: groupRows },
         { data: settingsRows },
+        { data: bodyRows },
+        { data: waterRows },
+        { data: exerciseRows },
+        { data: supplRows },
       ] = await Promise.all([
         supabase.from('products').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
         supabase.from('routine_groups').select('*').eq('user_id', userId).order('sort_order', { ascending: true }),
         supabase.from('user_settings').select('*').eq('user_id', userId),
+        supabase.from('body_logs').select('*').eq('user_id', userId).order('log_date', { ascending: true }),
+        supabase.from('water_logs').select('*').eq('user_id', userId).order('log_date', { ascending: true }),
+        supabase.from('exercise_logs').select('*').eq('user_id', userId).gte('log_date', ninetyDaysAgo).order('log_date', { ascending: false }),
+        supabase.from('supplement_logs').select('*').eq('user_id', userId).gte('log_date', thirtyDaysAgo),
       ])
 
-      // Guard: only update state if queries returned real data (not null)
       if (productRows === null || groupRows === null) {
         console.warn('loadData: null response, skipping setState')
         return
@@ -309,13 +333,38 @@ export function useStore(userId) {
 
       const products = productRows.map(rowToProduct)
       const routineGroups = groupRows.map(rowToGroup)
-      const settings = settingsRows?.[0] ? {
-        userName: settingsRows[0].user_name || '',
-        trackerAmOrder: settingsRows[0].tracker_am_order || [],
-        trackerPmOrder: settingsRows[0].tracker_pm_order || [],
-      } : INITIAL_STATE.settings
+      const settings = rowToSettings(settingsRows?.[0])
 
-      setState({ products, routineGroups, settings })
+      // Build bodyLogs dict
+      const bodyLogs = {}
+      ;(bodyRows || []).forEach(r => {
+        bodyLogs[r.log_date] = { weight: r.weight ?? null, bodyFat: r.body_fat ?? null }
+      })
+
+      // Build waterLogs dict
+      const waterLogs = {}
+      ;(waterRows || []).forEach(r => {
+        waterLogs[r.log_date] = r.total_ml
+      })
+
+      // Build exercises array
+      const exercises = (exerciseRows || []).map(r => ({
+        id: r.id,
+        date: r.log_date,
+        type: r.exercise_type || '',
+        subType: r.sub_type || '',
+        durationMin: r.duration_min || 30,
+        intensity: r.intensity || 'moderate',
+      }))
+
+      // Build supplementCheckins dict
+      const supplementCheckins = {}
+      ;(supplRows || []).forEach(r => {
+        if (!supplementCheckins[r.log_date]) supplementCheckins[r.log_date] = []
+        supplementCheckins[r.log_date].push(r.supplement_name)
+      })
+
+      setState({ products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins })
     } catch (e) {
       console.error('Load error:', e)
     }
@@ -325,9 +374,6 @@ export function useStore(userId) {
   // ── Products ───────────────────────────────────────────────
   const toggleProductUseDate = useCallback(async (productId, section, date) => {
     const key = section ? `${date}-${section}` : date
-
-    // Read current log from stateRef (not inside setState updater)
-    // This avoids React 18 StrictMode double-invoke bug where newLog gets reversed
     const currentProduct = stateRef.current.products.find(p => p.id === productId)
     if (!currentProduct) return
     const prevLog = currentProduct.usageLog || []
@@ -367,17 +413,9 @@ export function useStore(userId) {
     const newProduct = {
       id: Date.now().toString(),
       addedAt: new Date().toISOString(),
-      nickname: '',
-      brand: '',
-      name: '',
-      category: '',
-      effects: [],
-      frequencyMode: 'daily',
-      targetDays: [],
-      timesPerWeek: 3,
-      usageLog: [],
-      timeOfDay: '',
-      caution: [],
+      nickname: '', brand: '', name: '', category: '',
+      effects: [], frequencyMode: 'daily', targetDays: [],
+      timesPerWeek: 3, usageLog: [], timeOfDay: '', caution: [],
       imagePreview: null,
       ...product,
     }
@@ -424,7 +462,6 @@ export function useStore(userId) {
     })
     mutating.current++
     try {
-      // Groups that referenced this product need updating
       const affectedGroups = (prevState?.routineGroups || []).filter(g =>
         g.dayItems.includes(id) || g.nightItems.includes(id)
       )
@@ -448,10 +485,8 @@ export function useStore(userId) {
   const addGroup = useCallback(async (name, notes = '') => {
     const newGroup = {
       id: Date.now().toString(),
-      name: name || '新組別',
-      notes: notes || '',
-      dayItems: [],
-      nightItems: [],
+      name: name || '新組別', notes: notes || '',
+      dayItems: [], nightItems: [],
       sortOrder: Math.floor(Date.now() / 1000),
     }
     setState(prev => ({ ...prev, routineGroups: [...prev.routineGroups, newGroup] }))
@@ -512,10 +547,11 @@ export function useStore(userId) {
   // ── Settings ───────────────────────────────────────────────
   const updateSettings = useCallback(async (patch) => {
     setState(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }))
-    await supabase.from('user_settings').upsert({
-      user_id: userId,
-      user_name: patch.userName,
-    }, { onConflict: 'user_id' })
+    const row = { user_id: userId }
+    if (patch.userName !== undefined) row.user_name = patch.userName
+    if (Object.keys(row).length > 1) {
+      await supabase.from('user_settings').upsert(row, { onConflict: 'user_id' })
+    }
   }, [userId])
 
   const updateTrackerOrder = useCallback(async (section, order) => {
@@ -526,6 +562,163 @@ export function useStore(userId) {
       { user_id: userId, [dbKey]: order },
       { onConflict: 'user_id' }
     )
+  }, [userId])
+
+  // ── Body Logs ──────────────────────────────────────────────
+  const upsertBodyLog = useCallback(async (date, weight, bodyFat) => {
+    const prevLog = stateRef.current.bodyLogs[date]
+    setState(prev => ({
+      ...prev,
+      bodyLogs: { ...prev.bodyLogs, [date]: { weight, bodyFat } },
+    }))
+    mutating.current++
+    try {
+      const { error } = await supabase.from('body_logs').upsert({
+        user_id: userId,
+        log_date: date,
+        weight: weight ?? null,
+        body_fat: bodyFat ?? null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,log_date' })
+      if (error) throw error
+    } catch (e) {
+      console.error('upsertBodyLog failed:', e)
+      setState(prev => ({
+        ...prev,
+        bodyLogs: prevLog !== undefined
+          ? { ...prev.bodyLogs, [date]: prevLog }
+          : Object.fromEntries(Object.entries(prev.bodyLogs).filter(([k]) => k !== date)),
+      }))
+    } finally {
+      mutating.current--
+    }
+  }, [userId])
+
+  // ── Water Logs ──────────────────────────────────────────────
+  const addWater = useCallback(async (ml, date) => {
+    const currentMl = stateRef.current.waterLogs[date] || 0
+    const newMl = Math.max(0, currentMl + ml)
+    setState(prev => ({
+      ...prev,
+      waterLogs: { ...prev.waterLogs, [date]: newMl },
+    }))
+    mutating.current++
+    try {
+      const { error } = await supabase.from('water_logs').upsert({
+        user_id: userId,
+        log_date: date,
+        total_ml: newMl,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,log_date' })
+      if (error) throw error
+    } catch (e) {
+      console.error('addWater failed:', e)
+      setState(prev => ({
+        ...prev,
+        waterLogs: { ...prev.waterLogs, [date]: currentMl },
+      }))
+    } finally {
+      mutating.current--
+    }
+  }, [userId])
+
+  // ── Exercise Logs ──────────────────────────────────────────
+  const addExercise = useCallback(async (date, type, subType, durationMin, intensity) => {
+    const tempId = `tmp-${Date.now()}`
+    const newEx = { id: tempId, date, type, subType: subType || '', durationMin: durationMin || 30, intensity: intensity || 'moderate' }
+    setState(prev => ({ ...prev, exercises: [newEx, ...prev.exercises] }))
+    mutating.current++
+    try {
+      const { data, error } = await supabase.from('exercise_logs').insert({
+        user_id: userId,
+        log_date: date,
+        exercise_type: type,
+        sub_type: subType || '',
+        duration_min: durationMin || 30,
+        intensity: intensity || 'moderate',
+      }).select()
+      if (error) throw error
+      if (data?.[0]) {
+        setState(prev => ({
+          ...prev,
+          exercises: prev.exercises.map(e => e.id === tempId ? { ...e, id: data[0].id } : e),
+        }))
+      }
+    } catch (e) {
+      console.error('addExercise failed:', e)
+      setState(prev => ({ ...prev, exercises: prev.exercises.filter(e => e.id !== tempId) }))
+    } finally {
+      mutating.current--
+    }
+  }, [userId])
+
+  const deleteExercise = useCallback(async (id) => {
+    let prevExercises = null
+    setState(prev => {
+      prevExercises = prev.exercises
+      return { ...prev, exercises: prev.exercises.filter(e => e.id !== id) }
+    })
+    mutating.current++
+    try {
+      const { error } = await supabase.from('exercise_logs').delete().eq('id', id)
+      if (error) throw error
+    } catch (e) {
+      console.error('deleteExercise failed:', e)
+      if (prevExercises) setState(prev => ({ ...prev, exercises: prevExercises }))
+    } finally {
+      mutating.current--
+    }
+  }, [])
+
+  // ── Supplement Logs ─────────────────────────────────────────
+  const toggleSupplement = useCallback(async (name, date) => {
+    const current = stateRef.current.supplementCheckins[date] || []
+    const isChecked = current.includes(name)
+    const newList = isChecked ? current.filter(n => n !== name) : [...current, name]
+    setState(prev => ({
+      ...prev,
+      supplementCheckins: { ...prev.supplementCheckins, [date]: newList },
+    }))
+    mutating.current++
+    try {
+      if (isChecked) {
+        const { error } = await supabase.from('supplement_logs')
+          .delete().eq('user_id', userId).eq('log_date', date).eq('supplement_name', name)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('supplement_logs')
+          .insert({ user_id: userId, log_date: date, supplement_name: name })
+        if (error) throw error
+      }
+    } catch (e) {
+      console.error('toggleSupplement failed:', e)
+      setState(prev => ({
+        ...prev,
+        supplementCheckins: { ...prev.supplementCheckins, [date]: current },
+      }))
+    } finally {
+      mutating.current--
+    }
+  }, [userId])
+
+  const updateSupplementNames = useCallback(async (names) => {
+    setState(prev => ({ ...prev, settings: { ...prev.settings, supplementNames: names } }))
+    await supabase.from('user_settings').upsert(
+      { user_id: userId, supplement_names: names },
+      { onConflict: 'user_id' }
+    )
+  }, [userId])
+
+  const updateBodyGoals = useCallback(async (patch) => {
+    setState(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }))
+    const row = { user_id: userId }
+    if (patch.bodyGoalWeight !== undefined) row.body_goal_weight = patch.bodyGoalWeight
+    if (patch.bodyGoalFat !== undefined) row.body_goal_fat = patch.bodyGoalFat
+    if (patch.waterGoalMl !== undefined) row.water_goal_ml = patch.waterGoalMl
+    if (patch.waterQuickAmounts !== undefined) row.water_quick_amounts = patch.waterQuickAmounts
+    if (Object.keys(row).length > 1) {
+      await supabase.from('user_settings').upsert(row, { onConflict: 'user_id' })
+    }
   }, [userId])
 
   return {
@@ -543,5 +736,12 @@ export function useStore(userId) {
     deleteGroup,
     updateSettings,
     updateTrackerOrder,
+    upsertBodyLog,
+    addWater,
+    addExercise,
+    deleteExercise,
+    toggleSupplement,
+    updateSupplementNames,
+    updateBodyGoals,
   }
 }
