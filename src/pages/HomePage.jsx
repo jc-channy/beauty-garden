@@ -532,31 +532,52 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
   )
 }
 
-function SkincareSection({ title, tag, tagBg, tagText, products, selectedDate, onToggle, emptyMsg, defaultCollapsed, section }) {
-  const [collapsed, setCollapsed] = React.useState(defaultCollapsed ?? false)
-  const done = products.filter(p => isUsedOnDate(p.usageLog, selectedDate, section)).length
-  const allDone = products.length > 0 && done === products.length
+function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggle, noGroupMsg }) {
+  const [collapsed, setCollapsed] = React.useState(false)
+  const amDone = amProducts.filter(p => isUsedOnDate(p.usageLog, selectedDate, 'am')).length
+  const pmDone = pmProducts.filter(p => isUsedOnDate(p.usageLog, selectedDate, 'pm')).length
+  const total = amProducts.length + pmProducts.length
+  const totalDone = amDone + pmDone
+  const allDone = total > 0 && totalDone === total
 
   return (
     <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px solid var(--border-soft)', marginBottom: 10, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 8px', cursor: 'pointer', userSelect: 'none' }} onClick={() => setCollapsed(s => !s)}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: tagBg, color: tagText }}>{tag}</span>
+          <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: '#EFD7D7', color: '#9A6060' }}>保養</span>
           {allDone && <span style={{ fontSize: 11, color: '#5A8A50', background: '#EEF4EC', borderRadius: 6, padding: '1px 6px' }}>完成 ✓</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {products.length > 0 && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{done}/{products.length}</span>}
+          {total > 0 && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{totalDone}/{total}</span>}
           <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'inline-block', transition: 'transform 0.2s', transform: collapsed ? 'rotate(-90deg)' : 'none' }}>▾</span>
         </div>
       </div>
       {!collapsed && (
         <div style={{ padding: '0 14px 12px' }}>
-          {products.length === 0 ? (
-            <div style={{ padding: '12px 0', textAlign: 'center', borderRadius: 12, border: '0.5px dashed var(--border-soft)', fontSize: 13, color: 'var(--text-muted)' }}>{emptyMsg}</div>
+          {total === 0 ? (
+            <div style={{ padding: '12px 0', textAlign: 'center', borderRadius: 12, border: '0.5px dashed var(--border-soft)', fontSize: 13, color: 'var(--text-muted)' }}>{noGroupMsg}</div>
           ) : (
-            products.map((p, idx) => (
-              <CheckItem key={p.id} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, section)} onToggle={() => onToggle(p.id, section)} section={section} index={idx + 1} />
-            ))
+            <>
+              {amProducts.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>☀️ 早上</div>
+                  {amProducts.map((p, idx) => (
+                    <CheckItem key={p.id} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, 'am')} onToggle={() => onToggle(p.id, 'am')} section="am" index={idx + 1} />
+                  ))}
+                </>
+              )}
+              {amProducts.length > 0 && pmProducts.length > 0 && (
+                <div style={{ height: '0.5px', background: 'var(--border-soft)', margin: '10px 0' }} />
+              )}
+              {pmProducts.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>🌙 晚上</div>
+                  {pmProducts.map((p, idx) => (
+                    <CheckItem key={p.id} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, 'pm')} onToggle={() => onToggle(p.id, 'pm')} section="pm" index={idx + 1} />
+                  ))}
+                </>
+              )}
+            </>
           )}
         </div>
       )}
@@ -646,15 +667,14 @@ export default function HomePage({ store, onManageGroups }) {
   // ── Progress calculation ──────────────────────────────────
   const progressItems = []
   progressItems.push({ id: 'body', done: bodyLog?.weight != null })
-  if (groups.length > 0 && amProducts.length > 0) {
-    progressItems.push({ id: 'am', done: amDone === amProducts.length })
+  if (groups.length > 0 && (amProducts.length > 0 || pmProducts.length > 0)) {
+    const totalSkincare = amProducts.length + pmProducts.length
+    const doneSkincare = amDone + pmDone
+    progressItems.push({ id: 'skincare', done: totalSkincare > 0 && doneSkincare === totalSkincare })
   }
   progressItems.push({ id: 'water', done: waterToday >= waterGoal })
   if (supplementNames.length > 0) {
     progressItems.push({ id: 'supp', done: supplementChecked.length >= supplementNames.length })
-  }
-  if (groups.length > 0 && pmProducts.length > 0) {
-    progressItems.push({ id: 'pm', done: pmDone === pmProducts.length })
   }
 
   const doneCount = progressItems.filter(i => i.done).length
@@ -729,12 +749,12 @@ export default function HomePage({ store, onManageGroups }) {
         </div>
       )}
 
-      {/* 2. 保養 AM */}
+      {/* 2. 保養（AM + PM 合一） */}
       {products.length > 0 ? (
-        <SkincareSection tag="保養 AM" tagBg="#EFD7D7" tagText="#9A6060" title="早上保養"
-          products={amProducts} selectedDate={selectedDate} onToggle={handleToggle}
-          emptyMsg={groups.length === 0 ? '請先建立保養組別' : '這個組別還沒有設定早上步驟'}
-          defaultCollapsed={isEvening} section="am"
+        <SkincareCombinedSection
+          amProducts={amProducts} pmProducts={pmProducts}
+          selectedDate={selectedDate} onToggle={handleToggle}
+          noGroupMsg={groups.length === 0 ? '請先建立保養組別' : '這個組別還沒有設定步驟'}
         />
       ) : (
         <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px dashed var(--border-soft)', padding: '16px 18px', marginBottom: 10, textAlign: 'center' }}>
@@ -751,14 +771,6 @@ export default function HomePage({ store, onManageGroups }) {
       {/* 5. 運動 */}
       <ExerciseSection exercises={exercises} selectedDate={selectedDate} onAdd={addExercise} onDelete={deleteExercise} />
 
-      {/* 6. 保養 PM */}
-      {products.length > 0 && (
-        <SkincareSection tag="保養 PM" tagBg="#D7DFD2" tagText="#5A7A52" title="晚上保養"
-          products={pmProducts} selectedDate={selectedDate} onToggle={handleToggle}
-          emptyMsg={groups.length === 0 ? '請先建立保養組別' : '這個組別還沒有設定晚上步驟'}
-          defaultCollapsed={!isEvening} section="pm"
-        />
-      )}
 
       {/* No groups nudge */}
       {products.length > 0 && groups.length === 0 && (
