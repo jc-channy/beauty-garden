@@ -136,7 +136,7 @@ function SectionCard({ tag, tagBg, tagText, children, headerRight }) {
 }
 
 // ── Body section ──────────────────────────────────────────────
-function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat }) {
+function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat, bodyLogs }) {
   const [weight, setWeight] = React.useState('')
   const [bodyFat, setBodyFat] = React.useState('')
   const saved = bodyLog?.weight != null || bodyLog?.bodyFat != null
@@ -155,6 +155,20 @@ function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat }) {
     }
   }
 
+  // 找上次已知體脂率
+  const lastFatInfo = React.useMemo(() => {
+    if (!bodyLogs || bodyLog?.bodyFat != null) return null
+    const sorted = Object.keys(bodyLogs).filter(d => d < selectedDate).sort().reverse()
+    for (const d of sorted) {
+      if (bodyLogs[d]?.bodyFat != null) {
+        const ms = new Date(selectedDate + 'T12:00:00') - new Date(d + 'T12:00:00')
+        const daysAgo = Math.round(ms / 86400000)
+        return { value: bodyLogs[d].bodyFat, daysAgo }
+      }
+    }
+    return null
+  }, [bodyLogs, selectedDate, bodyLog])
+
   const fields = [
     { label: '體重', unit: 'kg', val: weight, set: setWeight, goal: goalWeight, current: parseFloat(weight) },
     { label: '體脂率', unit: '%', val: bodyFat, set: setBodyFat, goal: goalFat, current: parseFloat(bodyFat) },
@@ -165,8 +179,10 @@ function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat }) {
       headerRight={saved ? <span style={{ fontSize: 11, color: '#8A6A40', background: '#F2E6D9', padding: '2px 8px', borderRadius: 8 }}>已記錄 ✓</span> : null}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {fields.map(({ label, unit, val, set, goal, current }) => {
+          const isFat = label === '體脂率'
           const reached = goal != null && !isNaN(current) && current <= goal
           const diff = goal != null && !isNaN(current) ? (current - goal) : null
+          const showLastFat = isFat && !val && lastFatInfo
           return (
             <div key={label} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '10px 12px' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
@@ -175,7 +191,7 @@ function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat }) {
                   type="number" inputMode="decimal" value={val}
                   onChange={e => set(e.target.value)}
                   onBlur={handleBlur}
-                  placeholder="—"
+                  placeholder={showLastFat ? String(lastFatInfo.value) : '—'}
                   style={{
                     width: '100%', background: 'none', border: 'none', outline: 'none',
                     fontSize: 22, fontWeight: 500, color: 'var(--text-primary)',
@@ -184,14 +200,19 @@ function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat }) {
                 />
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>{unit}</span>
               </div>
-              {goal != null && !isNaN(current) && (
+              {showLastFat && (
+                <div style={{ fontSize: 11, marginTop: 4, color: '#B09070' }}>
+                  {lastFatInfo.daysAgo} 天前測量
+                </div>
+              )}
+              {!showLastFat && goal != null && !isNaN(current) && (
                 <div style={{ fontSize: 11, marginTop: 4, color: reached ? '#5A7A52' : 'var(--text-muted)' }}>
                   {reached
                     ? `✓ 達標（目標 ${goal}${unit}）`
                     : `距目標 +${diff.toFixed(1)}${unit}`}
                 </div>
               )}
-              {goal != null && isNaN(current) && (
+              {!showLastFat && goal != null && isNaN(current) && (
                 <div style={{ fontSize: 11, marginTop: 4, color: 'var(--border-soft)' }}>目標 {goal}{unit}</div>
               )}
             </div>
@@ -1289,7 +1310,7 @@ export default function HomePage({ store, onManageGroups }) {
       {allDone && <CompletionCard done={doneCount} total={totalCount} streak={streak} />}
 
       {/* 1. 體態 */}
-      <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} />
+      <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} bodyLogs={bodyLogs} />
 
       {/* 2. 飲水 */}
       <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} entries={waterEntries} onAdd={(ml) => addWater(ml, selectedDate)} onDeleteEntry={(id) => deleteWaterEntry(id, selectedDate)} onUpdateQuickAmounts={(amounts) => updateBodyGoals({ waterQuickAmounts: amounts })} />

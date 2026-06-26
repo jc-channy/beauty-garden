@@ -58,6 +58,15 @@ html, body {
   margin: 0 auto;
 }
 
+/* ── Hide scrollbars globally ── */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Scrollable content area ── */
 .page-scroll {
   flex: 1;
