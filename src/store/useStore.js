@@ -178,6 +178,7 @@ const INITIAL_STATE = {
     waterQuickAmounts: [200, 350, 500],
     bodyGoalWeight: null,
     bodyGoalFat: null,
+    exerciseTypes: ['有氧', '重訓', '瑜珈／伸展'],
   },
   // Daily logs keyed by date string 'YYYY-MM-DD'
   bodyLogs: {},         // { date: { weight, bodyFat } }
@@ -269,6 +270,7 @@ function rowToSettings(row) {
     waterQuickAmounts: row.water_quick_amounts || [200, 350, 500],
     bodyGoalWeight: row.body_goal_weight ?? null,
     bodyGoalFat: row.body_goal_fat ?? null,
+    exerciseTypes: row.exercise_types || ['有氧', '重訓', '瑜珈／伸展'],
   }
 }
 
@@ -745,6 +747,14 @@ export function useStore(userId) {
     )
   }, [userId])
 
+  const updateExerciseTypes = useCallback(async (types) => {
+    setState(prev => ({ ...prev, settings: { ...prev.settings, exerciseTypes: types } }))
+    await supabase.from('user_settings').upsert(
+      { user_id: userId, exercise_types: types },
+      { onConflict: 'user_id' }
+    )
+  }, [userId])
+
   const updateBodyGoals = useCallback(async (patch) => {
     setState(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }))
     const row = { user_id: userId }
@@ -780,6 +790,7 @@ export function useStore(userId) {
     toggleSupplement,
     updateSupplementNames,
     updateSupplementItems,
+    updateExerciseTypes,
     updateBodyGoals,
   }
 }

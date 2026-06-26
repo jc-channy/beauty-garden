@@ -343,90 +343,167 @@ function SupplementTracker({ supplementItems, supplementCheckins }) {
   )
 }
 
-// ── Water week chart ───────────────────────────────────────────
-function WaterWeekChart({ waterLogs, goalMl }) {
+// ── Water week grid ────────────────────────────────────────────
+function WaterWeekGrid({ waterLogs, goalMl }) {
+  const [weekOffset, setWeekOffset] = useState(0)
+  const weekDates = getWeekDates(weekOffset)
+  const todayStr = localDateStr(new Date())
   const goal = goalMl || 2000
-  const today = localDateStr(new Date())
-  const days = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i); days.push(localDateStr(d))
-  }
-  const DOW = ['日', '一', '二', '三', '四', '五', '六']
-  const maxMl = Math.max(goal, ...days.map(d => waterLogs[d] || 0))
+  const DOW = ['一', '二', '三', '四', '五', '六', '日']
+  const fmt = d => `${d.slice(5, 7)}/${d.slice(8, 10)}`
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80, marginBottom: 6 }}>
-        {days.map(d => {
-          const ml = waterLogs[d] || 0
-          const isToday = d === today
-          const pct = maxMl > 0 ? ml / maxMl : 0
-          const reached = ml >= goal
-          const barH = Math.max(4, Math.round(pct * 72))
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-secondary)', padding: '2px 8px' }}>‹</button>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{fmt(weekDates[0])}～{fmt(weekDates[6])}</div>
+        <button onClick={() => setWeekOffset(w => Math.min(0, w + 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: weekOffset === 0 ? 'var(--border-soft)' : 'var(--text-secondary)', padding: '2px 8px' }}>›</button>
+      </div>
+      {/* header */}
+      <div style={{ display: 'flex', paddingLeft: 4, marginBottom: 4 }}>
+        <div style={{ width: 80, minWidth: 80 }} />
+        {weekDates.map((d, i) => {
+          const isToday = d === todayStr
           return (
-            <div key={d} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-              {ml > 0 && <span style={{ fontSize: 9, color: reached ? '#185FA5' : 'var(--text-muted)', fontWeight: reached ? 600 : 400 }}>{ml >= 1000 ? `${(ml/1000).toFixed(1)}L` : `${ml}`}</span>}
-              <div style={{ width: '100%', height: barH, background: reached ? '#85B7EB' : '#B5D4F4', borderRadius: '4px 4px 2px 2px', opacity: isToday ? 1 : 0.75, border: isToday ? '1.5px solid #185FA5' : 'none', boxSizing: 'border-box' }} />
+            <div key={d} style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: isToday ? '#185FA5' : 'var(--text-muted)', fontWeight: isToday ? 700 : 400 }}>{DOW[i]}</div>
+              <div style={{ fontSize: 10, color: isToday ? '#185FA5' : 'var(--text-muted)' }}>{d.slice(8, 10)}</div>
             </div>
           )
         })}
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {days.map(d => {
-          const dow = new Date(d + 'T12:00:00').getDay()
-          const isToday = d === today
-          return <div key={d} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: isToday ? '#185FA5' : 'var(--text-muted)', fontWeight: isToday ? 600 : 400 }}>{isToday ? '今' : DOW[dow]}</div>
+      {/* data row */}
+      <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 4 }}>
+        <div style={{ width: 80, minWidth: 80, fontSize: 11, color: 'var(--text-muted)' }}>目標 {goal}ml</div>
+        {weekDates.map(d => {
+          const ml = waterLogs[d] || 0
+          const reached = ml >= goal
+          const isFuture = d > todayStr
+          const isToday = d === todayStr
+          return (
+            <div key={d} style={{ flex: 1, textAlign: 'center', padding: '2px' }}>
+              <div style={{
+                width: 32, height: 36, borderRadius: 8, margin: '0 auto',
+                background: isFuture ? 'transparent' : ml === 0 ? 'var(--bg-surface)' : reached ? '#85B7EB' : '#D4E8F4',
+                border: isToday ? '1.5px solid #185FA5' : isFuture ? 'none' : '0.5px solid var(--border-soft)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {ml > 0 && !isFuture && (
+                  <span style={{ fontSize: 9, color: reached ? '#0C447C' : '#185FA5', fontWeight: reached ? 600 : 400, lineHeight: 1.2, textAlign: 'center' }}>
+                    {ml >= 1000 ? `${(ml / 1000).toFixed(1)}L` : `${ml}`}
+                  </span>
+                )}
+              </div>
+            </div>
+          )
         })}
       </div>
-      <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
         <div style={{ width: 10, height: 10, background: '#85B7EB', borderRadius: 2 }} />
         <span>達到 {goal}ml</span>
-        <div style={{ width: 10, height: 10, background: '#B5D4F4', borderRadius: 2, marginLeft: 8 }} />
+        <div style={{ width: 10, height: 10, background: '#D4E8F4', borderRadius: 2, marginLeft: 8 }} />
         <span>未達目標</span>
       </div>
     </div>
   )
 }
 
-// ── Exercise weekly view ───────────────────────────────────────
-function ExerciseTracker({ exercises }) {
+// ── Exercise grid tracker ──────────────────────────────────────
+function ExerciseGrid({ exercises, exerciseTypes, onUpdateTypes }) {
   const [weekOffset, setWeekOffset] = useState(0)
+  const [showEdit, setShowEdit] = useState(false)
+  const [editTypes, setEditTypes] = React.useState(exerciseTypes || [])
   const weekDates = getWeekDates(weekOffset)
-  const fmt = d => `${d.slice(5, 7)}/${d.slice(8, 10)}`
-  const INTENSITY_LABEL = { light: '輕度', moderate: '中度', intense: '高強度' }
   const todayStr = localDateStr(new Date())
+  const DOW = ['一', '二', '三', '四', '五', '六', '日']
+  const fmt = d => `${d.slice(5, 7)}/${d.slice(8, 10)}`
+  const types = exerciseTypes || []
 
-  const weekExercises = (exercises || []).filter(e => weekDates.includes(e.date))
-  const byDate = {}
-  weekDates.forEach(d => { byDate[d] = [] })
-  weekExercises.forEach(e => { if (byDate[e.date]) byDate[e.date].push(e) })
+  React.useEffect(() => { setEditTypes(exerciseTypes || []) }, [exerciseTypes])
+
+  function saveEdit() {
+    onUpdateTypes(editTypes.map(t => t.trim()).filter(Boolean))
+    setShowEdit(false)
+  }
+
+  function hasType(type, date) {
+    return (exercises || []).some(e => e.date === date && e.type === type)
+  }
+
+  if (showEdit) {
+    return (
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>編輯運動類型</div>
+          <button onClick={saveEdit} style={{ fontSize: 12, color: '#5A7A52', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>完成</button>
+        </div>
+        {editTypes.map((type, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <button onClick={() => { if (i > 0) { const a = [...editTypes]; [a[i-1], a[i]] = [a[i], a[i-1]]; setEditTypes(a) } }} style={{ background: 'none', border: 'none', cursor: i > 0 ? 'pointer' : 'default', fontSize: 13, color: i > 0 ? 'var(--text-muted)' : 'var(--border-soft)', lineHeight: 1, padding: '1px 3px' }}>↑</button>
+              <button onClick={() => { if (i < editTypes.length - 1) { const a = [...editTypes]; [a[i], a[i+1]] = [a[i+1], a[i]]; setEditTypes(a) } }} style={{ background: 'none', border: 'none', cursor: i < editTypes.length - 1 ? 'pointer' : 'default', fontSize: 13, color: i < editTypes.length - 1 ? 'var(--text-muted)' : 'var(--border-soft)', lineHeight: 1, padding: '1px 3px' }}>↓</button>
+            </div>
+            <input type="text" value={type} onChange={e => { const a = [...editTypes]; a[i] = e.target.value; setEditTypes(a) }} style={{ flex: 1, fontSize: 13 }} />
+            <button onClick={() => setEditTypes(editTypes.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#C07070', padding: '0 4px' }}>×</button>
+          </div>
+        ))}
+        <button onClick={() => setEditTypes([...editTypes, ''])} style={{ marginTop: 4, fontSize: 12, color: '#9A7A5A', background: 'none', border: '0.5px dashed var(--border-soft)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', width: '100%' }}>+ 新增類型</button>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-secondary)', padding: '2px 8px' }}>‹</button>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{fmt(weekDates[0])}～{fmt(weekDates[6])}</div>
         <button onClick={() => setWeekOffset(w => Math.min(0, w + 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: weekOffset === 0 ? 'var(--border-soft)' : 'var(--text-secondary)', padding: '2px 8px' }}>›</button>
       </div>
-      {weekExercises.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>這週沒有運動紀錄</div>
+      {types.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '12px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+          尚未設定運動類型，<button onClick={() => setShowEdit(true)} style={{ color: '#9A7A5A', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textDecoration: 'underline', padding: 0 }}>新增</button>
+        </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {weekDates.filter(d => byDate[d].length > 0).map(d => (
-            <div key={d}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
-                {d === todayStr ? '今天' : `${d.slice(8, 10)} 日`}
-              </div>
-              {byDate[d].map(e => (
-                <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#EEF4EC', borderRadius: 10, marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, color: '#5A7A52', fontWeight: 500 }}>{e.type}</span>
-                  {e.subType && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{e.subType}</span>}
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{e.durationMin}分 · {INTENSITY_LABEL[e.intensity] || e.intensity}</span>
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 6, paddingLeft: 4 }}>
+            <div style={{ width: 80, minWidth: 80 }} />
+            {weekDates.map((d, i) => {
+              const isToday = d === todayStr
+              return (
+                <div key={d} style={{ width: 34, minWidth: 34, textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, color: isToday ? '#5A7A52' : 'var(--text-muted)', fontWeight: isToday ? 700 : 400 }}>{DOW[i]}</div>
+                  <div style={{ fontSize: 10, color: isToday ? '#5A7A52' : 'var(--text-muted)' }}>{d.slice(8, 10)}</div>
                 </div>
-              ))}
+              )
+            })}
+          </div>
+          {types.map(type => (
+            <div key={type} style={{ display: 'flex', alignItems: 'center', paddingBottom: 4, paddingLeft: 4 }}>
+              <div style={{ width: 80, minWidth: 80, paddingRight: 6 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{type}</span>
+              </div>
+              {weekDates.map(d => {
+                const logged = hasType(type, d)
+                const isFuture = d > todayStr
+                const isToday = d === todayStr
+                return (
+                  <div key={d} style={{ width: 34, minWidth: 34, textAlign: 'center' }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 7, margin: '0 auto',
+                      background: logged ? '#EEF4EC' : isFuture ? 'transparent' : 'var(--bg-surface)',
+                      border: isToday && !logged ? '1.5px solid #C8A87A' : isFuture ? 'none' : logged ? 'none' : '0.5px solid var(--border-soft)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {logged && <span style={{ fontSize: 12, color: '#5A7A52' }}>✓</span>}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           ))}
         </div>
       )}
+      <button onClick={() => setShowEdit(true)} style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', background: 'none', border: '0.5px solid var(--border-soft)', borderRadius: 8, padding: '5px 12px', cursor: 'pointer' }}>編輯類型</button>
     </div>
   )
 }
@@ -527,7 +604,7 @@ function computeAchievements({ products, waterLogs, bodyLogs, exercises, setting
 
 // ── Main ───────────────────────────────────────────────────────
 export default function AchievementsPage({ store }) {
-  const { state } = store
+  const { state, updateExerciseTypes } = store
   const { settings, products, waterLogs, bodyLogs, exercises, supplementCheckins } = state
   const [trackingTab, setTrackingTab] = useState('skincare')
 
@@ -586,10 +663,10 @@ export default function AchievementsPage({ store }) {
             <SupplementTracker supplementItems={settings.supplementItems || []} supplementCheckins={supplementCheckins || {}} />
           )}
           {trackingTab === 'water' && (
-            <WaterWeekChart waterLogs={waterLogs || {}} goalMl={settings.waterGoalMl || 2000} />
+            <WaterWeekGrid waterLogs={waterLogs || {}} goalMl={settings.waterGoalMl || 2000} />
           )}
           {trackingTab === 'exercise' && (
-            <ExerciseTracker exercises={exercises || []} />
+            <ExerciseGrid exercises={exercises || []} exerciseTypes={settings.exerciseTypes || []} onUpdateTypes={updateExerciseTypes} />
           )}
         </div>
       </Section>
