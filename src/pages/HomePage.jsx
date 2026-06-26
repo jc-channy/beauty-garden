@@ -243,6 +243,14 @@ function WaterSection({ totalMl, goalMl, quickAmounts, onAdd, onReset }) {
 // ── Supplement section ────────────────────────────────────────
 const SUPP_TIMINGS = ['早上空腹', '早餐後', '午餐後', '晚餐後', '睡前']
 
+const TIMING_COLORS = {
+  '早上空腹': { bg: '#FEF3C0', text: '#8A6010' },
+  '早餐後':   { bg: '#FEE2C0', text: '#8A4A10' },
+  '午餐後':   { bg: '#D7EDD4', text: '#3A6830' },
+  '晚餐後':   { bg: '#E0D8F4', text: '#4A3890' },
+  '睡前':     { bg: '#D0E4F4', text: '#1A4A7A' },
+}
+
 function SupplementItemEditor({ item, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) {
   return (
     <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '12px 12px 10px', marginBottom: 8 }}>
@@ -352,18 +360,25 @@ function SupplementSection({ items, checked, selectedDate, onToggle, onEditItems
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {items.map(item => {
               const done = checked.includes(item.name)
-              const timingLabel = (item.timings || []).join('・')
+              const timings = item.timings || []
               return (
                 <button key={item.name} onClick={() => onToggle(item.name, selectedDate)} style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
-                  padding: '7px 14px', borderRadius: 16,
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4,
+                  padding: '7px 12px', borderRadius: 16,
                   background: done ? '#EEEDFE' : 'var(--bg-surface)',
                   border: `0.5px solid ${done ? '#AFA9EC' : 'var(--border-soft)'}`,
                   cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left',
                 }}>
-                  {timingLabel ? (
-                    <span style={{ fontSize: 10, color: done ? '#7A72C8' : 'var(--text-muted)', lineHeight: 1.2 }}>{timingLabel}</span>
-                  ) : null}
+                  {timings.length > 0 && (
+                    <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                      {timings.map(t => {
+                        const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
+                        return (
+                          <span key={t} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 6, background: done ? c.bg + 'BB' : c.bg, color: c.text, fontWeight: 500, lineHeight: 1.5 }}>{t}</span>
+                        )
+                      })}
+                    </div>
+                  )}
                   <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     {done && <span style={{ width: 13, height: 13, borderRadius: '50%', background: '#AFA9EC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', flexShrink: 0 }}>✓</span>}
                     <span style={{ fontSize: 13, color: done ? '#534AB7' : 'var(--text-secondary)', fontWeight: done ? 500 : 400 }}>{item.name}</span>
