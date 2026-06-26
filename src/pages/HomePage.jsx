@@ -967,20 +967,12 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
               {product.timeOfDay === 'pm' ? '🌙晚' : '☀️早'}
             </span>
           )}
+          {cautionText && (
+            <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', whiteSpace: 'nowrap' }}>⚠ {cautionText.slice(0, 8)}</span>
+          )}
         </div>
       </div>
-      {cautionText && (
-        <div style={{
-          display: 'flex', alignItems: 'flex-start', gap: 6,
-          padding: '6px 12px 8px',
-          borderTop: '0.5px solid #F2EAE0',
-        }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#C8900A', flexShrink: 0, marginTop: 5 }} />
-          <span style={{ fontSize: 11, color: '#A07030', lineHeight: 1.45 }}>{cautionText}</span>
-        </div>
-      )}
     </div>
-  </div>
   )
 }
 
