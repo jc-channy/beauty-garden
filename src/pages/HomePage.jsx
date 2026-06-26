@@ -111,7 +111,7 @@ function SectionCard({ tag, tagBg, tagText, children, headerRight }) {
   return (
     <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px solid var(--border-soft)', marginBottom: 10, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 8px' }}>
-        <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: tagBg, color: tagText }}>{tag}</span>
+        <span style={{ fontSize: 13, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: tagBg, color: tagText }}>{tag}</span>
         {headerRight}
       </div>
       <div style={{ padding: '0 14px 12px' }}>{children}</div>
@@ -244,11 +244,11 @@ function WaterSection({ totalMl, goalMl, quickAmounts, onAdd, onReset }) {
 const SUPP_TIMINGS = ['早上空腹', '早餐後', '午餐後', '晚餐後', '睡前']
 
 const TIMING_COLORS = {
-  '早上空腹': { bg: '#FEF3C0', text: '#8A6010' },
-  '早餐後':   { bg: '#FEE2C0', text: '#8A4A10' },
-  '午餐後':   { bg: '#D7EDD4', text: '#3A6830' },
-  '晚餐後':   { bg: '#E0D8F4', text: '#4A3890' },
-  '睡前':     { bg: '#D0E4F4', text: '#1A4A7A' },
+  '早上空腹': { bg: '#FEF3C0', text: '#6B4A00' },
+  '早餐後':   { bg: '#FEE2C0', text: '#6B3200' },
+  '午餐後':   { bg: '#D7EDD4', text: '#245020' },
+  '晚餐後':   { bg: '#E0D8F4', text: '#332870' },
+  '睡前':     { bg: '#D0E4F4', text: '#0A3060' },
 }
 
 function SupplementEditModal({ items, onSave, onClose }) {
@@ -350,7 +350,7 @@ function SupplementEditModal({ items, onSave, onClose }) {
                     {/* 時機 badges 在前 */}
                     {(item.timings || []).map(t => {
                       const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
-                      return <span key={t} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 5, background: c.bg, color: c.text, fontWeight: 500, whiteSpace: 'nowrap' }}>{t}</span>
+                      return <span key={t} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 5, background: c.bg, color: c.text, fontWeight: 500, whiteSpace: 'nowrap' }}>{t}</span>
                     })}
                     <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{item.name}</span>
                     {item.amount ? <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {item.amount}</span> : null}
@@ -435,14 +435,14 @@ function SupplementSection({ items, checked, selectedDate, onToggle, onEditItems
                       {timings.map(t => {
                         const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
                         return (
-                          <span key={t} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 6, background: done ? c.bg + 'BB' : c.bg, color: c.text, fontWeight: 500, lineHeight: 1.5 }}>{t}</span>
+                          <span key={t} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 6, background: done ? c.bg + 'BB' : c.bg, color: c.text, fontWeight: 500, lineHeight: 1.5 }}>{t}</span>
                         )
                       })}
                     </div>
                   )}
                   <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     {done && <span style={{ width: 13, height: 13, borderRadius: '50%', background: '#AFA9EC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', flexShrink: 0 }}>✓</span>}
-                    <span style={{ fontSize: 13, color: done ? '#534AB7' : 'var(--text-secondary)', fontWeight: done ? 500 : 400 }}>{item.name}</span>
+                    <span style={{ fontSize: 14, color: done ? '#534AB7' : 'var(--text-secondary)', fontWeight: done ? 500 : 400 }}>{item.name}</span>
                     {item.amount ? <span style={{ fontSize: 11, color: done ? '#9A93D8' : 'var(--text-muted)' }}>· {item.amount}</span> : null}
                   </span>
                 </button>
@@ -660,20 +660,20 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
 
         {/* 名稱 + badges */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: usedToday ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: usedToday ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'all 0.2s', maxWidth: '55%' }}>
+          <span style={{ fontSize: 15, fontWeight: 500, color: usedToday ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: usedToday ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'all 0.2s', maxWidth: '55%' }}>
             {displayName}
           </span>
           {product.category && (() => {
             const c = CATEGORY_COLORS[product.category] || { bg: '#EEE', text: '#666' }
-            return <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, whiteSpace: 'nowrap' }}>{product.category}</span>
+            return <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, whiteSpace: 'nowrap' }}>{product.category}</span>
           })()}
           {mismatch && (
-            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', fontWeight: 500, whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', fontWeight: 500, whiteSpace: 'nowrap' }}>
               {product.timeOfDay === 'pm' ? '🌙晚' : '☀️早'}
             </span>
           )}
           {(product.caution || []).length > 0 && !usedToday && (
-            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', whiteSpace: 'nowrap' }}>⚠ {product.caution[0].slice(0, 6)}</span>
+            <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', whiteSpace: 'nowrap' }}>⚠ {product.caution[0].slice(0, 6)}</span>
           )}
         </div>
       </div>
@@ -698,7 +698,7 @@ function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggl
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: '#EFD7D7', color: '#9A6060' }}>保養</span>
+          <span style={{ fontSize: 13, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: '#EFD7D7', color: '#9A6060' }}>保養</span>
           {allDone && <span style={{ fontSize: 11, color: '#5A8A50', background: '#EEF4EC', borderRadius: 6, padding: '1px 6px' }}>全完成 ✓</span>}
         </div>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{totalDone}/{total}</span>
