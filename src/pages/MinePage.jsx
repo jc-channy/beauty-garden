@@ -108,12 +108,6 @@ export default function MinePage({ store, onNavigate }) {
           desc={`${routineGroups.length} 個組別`}
           onClick={() => onNavigate('groups')}
         />
-        <NavRow
-          icon="✦"
-          label="化妝參考"
-          desc="完整版 · 快速版 · 簡約版"
-          onClick={() => onNavigate('makeup')}
-        />
       </div>
 
       {/* ── 帳號 ── */}

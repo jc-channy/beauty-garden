@@ -76,14 +76,11 @@ function MainApp({ userId }) {
   if (subPage === 'products') {
     return <ProductsPage store={store} onBack={() => setSubPage(null)} />
   }
-  if (subPage === 'makeup') {
-    return <MakeupPage onBack={() => setSubPage(null)} />
-  }
-
   const pages = {
     today:        <HomePage store={store} onManageGroups={() => setSubPage('groups')} />,
     achievements: <AchievementsPage store={store} />,
     mine:         <MinePage store={store} onNavigate={setSubPage} />,
+    makeup:       <MakeupPage onBack={null} />,
   }
 
   return (
