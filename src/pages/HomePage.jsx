@@ -606,54 +606,63 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
 }
 
 function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggle, noGroupMsg }) {
-  const [collapsed, setCollapsed] = React.useState(false)
+  const hour = new Date().getHours()
+  const [tab, setTab] = React.useState(hour >= 12 ? 'pm' : 'am')
   const amDone = amProducts.filter(p => isUsedOnDate(p.usageLog, selectedDate, 'am')).length
   const pmDone = pmProducts.filter(p => isUsedOnDate(p.usageLog, selectedDate, 'pm')).length
   const total = amProducts.length + pmProducts.length
   const totalDone = amDone + pmDone
   const allDone = total > 0 && totalDone === total
 
+  const tabProducts = tab === 'am' ? amProducts : pmProducts
+  const tabDone    = tab === 'am' ? amDone : pmDone
+
   return (
     <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px solid var(--border-soft)', marginBottom: 10, overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 8px', cursor: 'pointer', userSelect: 'none' }} onClick={() => setCollapsed(s => !s)}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: '#EFD7D7', color: '#9A6060' }}>保養</span>
-          {allDone && <span style={{ fontSize: 11, color: '#5A8A50', background: '#EEF4EC', borderRadius: 6, padding: '1px 6px' }}>完成 ✓</span>}
+          {allDone && <span style={{ fontSize: 11, color: '#5A8A50', background: '#EEF4EC', borderRadius: 6, padding: '1px 6px' }}>全完成 ✓</span>}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {total > 0 && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{totalDone}/{total}</span>}
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'inline-block', transition: 'transform 0.2s', transform: collapsed ? 'rotate(-90deg)' : 'none' }}>▾</span>
-        </div>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{totalDone}/{total}</span>
       </div>
-      {!collapsed && (
-        <div style={{ padding: '0 14px 12px' }}>
-          {total === 0 ? (
-            <div style={{ padding: '12px 0', textAlign: 'center', borderRadius: 12, border: '0.5px dashed var(--border-soft)', fontSize: 13, color: 'var(--text-muted)' }}>{noGroupMsg}</div>
-          ) : (
-            <>
-              {amProducts.length > 0 && (
-                <>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>☀️ 早上</div>
-                  {amProducts.map((p, idx) => (
-                    <CheckItem key={p.id} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, 'am')} onToggle={() => onToggle(p.id, 'am')} section="am" index={idx + 1} />
-                  ))}
-                </>
-              )}
-              {amProducts.length > 0 && pmProducts.length > 0 && (
-                <div style={{ height: '0.5px', background: 'var(--border-soft)', margin: '8px 0' }} />
-              )}
-              {pmProducts.length > 0 && (
-                <>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🌙 晚上</div>
-                  {pmProducts.map((p, idx) => (
-                    <CheckItem key={p.id} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, 'pm')} onToggle={() => onToggle(p.id, 'pm')} section="pm" index={idx + 1} />
-                  ))}
-                </>
-              )}
-            </>
-          )}
-        </div>
-      )}
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 6, padding: '8px 14px 0' }}>
+        {[
+          { key: 'am', label: '☀️ 早上', done: amDone, total: amProducts.length },
+          { key: 'pm', label: '🌙 晚上', done: pmDone, total: pmProducts.length },
+        ].map(({ key, label, done, total: t }) => (
+          <button key={key} onClick={() => setTab(key)} style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '5px 12px', borderRadius: 20, border: '0.5px solid', fontSize: 12, cursor: 'pointer', fontWeight: tab === key ? 500 : 400,
+            borderColor: tab === key ? '#C8A87A' : 'var(--border-soft)',
+            background: tab === key ? '#F2E6D9' : 'var(--bg-surface)',
+            color: tab === key ? '#8A6A40' : 'var(--text-muted)',
+          }}>
+            {label}
+            {t > 0 && (
+              <span style={{ fontSize: 10, color: done === t ? '#5A8A50' : tab === key ? '#8A6A40' : 'var(--text-muted)' }}>
+                {done === t ? '✓' : `${done}/${t}`}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: '8px 14px 12px' }}>
+        {total === 0 ? (
+          <div style={{ padding: '12px 0', textAlign: 'center', borderRadius: 12, border: '0.5px dashed var(--border-soft)', fontSize: 13, color: 'var(--text-muted)' }}>{noGroupMsg}</div>
+        ) : tabProducts.length === 0 ? (
+          <div style={{ padding: '10px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>這個時段沒有保養品</div>
+        ) : (
+          tabProducts.map((p, idx) => (
+            <CheckItem key={p.id} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, tab)} onToggle={() => onToggle(p.id, tab)} section={tab} index={idx + 1} />
+          ))
+        )}
+      </div>
     </div>
   )
 }
