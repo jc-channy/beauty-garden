@@ -354,10 +354,10 @@ export function useStore(userId) {
         bodyLogs[r.log_date] = { weight: r.weight ?? null, bodyFat: r.body_fat ?? null }
       })
 
-      // Build waterLogs dict
+      // Build waterLogs dict  { date: { total, entries } }
       const waterLogs = {}
       ;(waterRows || []).forEach(r => {
-        waterLogs[r.log_date] = r.total_ml
+        waterLogs[r.log_date] = { total: r.total_ml || 0, entries: r.entries || [] }
       })
 
       // Build exercises array
@@ -609,11 +609,11 @@ export function useStore(userId) {
 
   // ── Water Logs ──────────────────────────────────────────────
   const resetWater = useCallback(async (date) => {
-    setState(prev => ({ ...prev, waterLogs: { ...prev.waterLogs, [date]: 0 } }))
+    setState(prev => ({ ...prev, waterLogs: { ...prev.waterLogs, [date]: { total: 0, entries: [] } } }))
     mutating.current++
     try {
       const { error } = await supabase.from('water_logs').upsert(
-        { user_id: userId, log_date: date, total_ml: 0, updated_at: new Date().toISOString() },
+        { user_id: userId, log_date: date, total_ml: 0, entries: [], updated_at: new Date().toISOString() },
         { onConflict: 'user_id,log_date' }
       )
       if (error) throw error
@@ -625,27 +625,58 @@ export function useStore(userId) {
   }, [userId])
 
   const addWater = useCallback(async (ml, date) => {
-    const currentMl = stateRef.current.waterLogs[date] || 0
-    const newMl = Math.max(0, currentMl + ml)
+    const current = stateRef.current.waterLogs[date]
+    const currentTotal = typeof current === 'number' ? current : (current?.total || 0)
+    const currentEntries = (typeof current === 'object' && current !== null) ? (current.entries || []) : []
+    const newEntry = { id: Date.now().toString(), time: new Date().toTimeString().slice(0, 5), ml }
+    const newEntries = ml > 0 ? [...currentEntries, newEntry] : currentEntries
+    const newTotal = Math.max(0, currentTotal + ml)
     setState(prev => ({
       ...prev,
-      waterLogs: { ...prev.waterLogs, [date]: newMl },
+      waterLogs: { ...prev.waterLogs, [date]: { total: newTotal, entries: newEntries } },
     }))
     mutating.current++
     try {
       const { error } = await supabase.from('water_logs').upsert({
         user_id: userId,
         log_date: date,
-        total_ml: newMl,
+        total_ml: newTotal,
+        entries: newEntries,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,log_date' })
       if (error) throw error
     } catch (e) {
       console.error('addWater failed:', e)
-      setState(prev => ({
-        ...prev,
-        waterLogs: { ...prev.waterLogs, [date]: currentMl },
-      }))
+      const restored = typeof current === 'number' ? { total: current, entries: [] } : (current || { total: 0, entries: [] })
+      setState(prev => ({ ...prev, waterLogs: { ...prev.waterLogs, [date]: restored } }))
+    } finally {
+      mutating.current--
+    }
+  }, [userId])
+
+  const deleteWaterEntry = useCallback(async (entryId, date) => {
+    const current = stateRef.current.waterLogs[date] || { total: 0, entries: [] }
+    const entries = current.entries || []
+    const removed = entries.find(e => e.id === entryId)
+    const newEntries = entries.filter(e => e.id !== entryId)
+    const newTotal = Math.max(0, (current.total || 0) - (removed?.ml || 0))
+    setState(prev => ({
+      ...prev,
+      waterLogs: { ...prev.waterLogs, [date]: { total: newTotal, entries: newEntries } },
+    }))
+    mutating.current++
+    try {
+      const { error } = await supabase.from('water_logs').upsert({
+        user_id: userId,
+        log_date: date,
+        total_ml: newTotal,
+        entries: newEntries,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,log_date' })
+      if (error) throw error
+    } catch (e) {
+      console.error('deleteWaterEntry failed:', e)
+      setState(prev => ({ ...prev, waterLogs: { ...prev.waterLogs, [date]: current } }))
     } finally {
       mutating.current--
     }
@@ -784,6 +815,7 @@ export function useStore(userId) {
     updateTrackerOrder,
     upsertBodyLog,
     addWater,
+    deleteWaterEntry,
     resetWater,
     addExercise,
     deleteExercise,

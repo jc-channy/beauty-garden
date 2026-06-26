@@ -1,9 +1,8 @@
 import React from 'react'
-import { todayKey, localDateStr, CATEGORY_COLORS, isUsedOnDate } from '../store/useStore.js'
+import { todayKey, localDateStr, CATEGORY_COLORS, isUsedOnDate, getWeekDates } from '../store/useStore.js'
 
 const DOW = ['日', '一', '二', '三', '四', '五', '六']
 
-const EXERCISE_TYPES = ['瑜伽伸展', '重訓', '有氧', '核心', '跑步', '其他']
 const INTENSITY_OPTS = [
   { key: 'light',    label: '輕度' },
   { key: 'moderate', label: '中度' },
@@ -170,9 +169,10 @@ function BodySection({ bodyLog, selectedDate, onSave }) {
 }
 
 // ── Water section ─────────────────────────────────────────────
-function WaterSection({ totalMl, goalMl, quickAmounts, onAdd, onReset }) {
+function WaterSection({ totalMl, goalMl, quickAmounts, entries, onAdd, onDeleteEntry }) {
   const [customMode, setCustomMode] = React.useState(false)
   const [customVal, setCustomVal] = React.useState('')
+  const [showEntries, setShowEntries] = React.useState(false)
   const pct = Math.min(100, goalMl > 0 ? Math.round((totalMl / goalMl) * 100) : 0)
   const done = totalMl >= goalMl
 
@@ -221,21 +221,37 @@ function WaterSection({ totalMl, goalMl, quickAmounts, onAdd, onReset }) {
             color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
           }}>自訂</button>
         )}
-        {totalMl > 0 && (
-          <button onClick={() => onAdd(-Math.min(200, totalMl))} style={{
-            padding: '6px 10px', borderRadius: 10,
-            border: '0.5px solid var(--border-soft)', background: 'transparent',
-            color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
-          }}>−200</button>
-        )}
-        {totalMl > 0 && onReset && (
-          <button onClick={onReset} style={{
-            padding: '6px 10px', borderRadius: 10,
-            border: '0.5px solid #F4C3C3', background: 'transparent',
-            color: '#C0706A', fontSize: 12, cursor: 'pointer',
-          }}>重置</button>
-        )}
       </div>
+      {/* Entries list */}
+      {entries.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <button onClick={() => setShowEntries(v => !v)} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 11, color: 'var(--text-muted)', padding: 0,
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            <span>{showEntries ? '▾' : '▸'}</span>
+            <span>紀錄（{entries.length} 筆）</span>
+          </button>
+          {showEntries && (
+            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {entries.map(entry => (
+                <div key={entry.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: 'var(--bg-surface)', borderRadius: 8, padding: '6px 10px',
+                }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>{entry.time}</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: '#185FA5', flex: 1 }}>{entry.ml} ml</span>
+                  <button onClick={() => onDeleteEntry(entry.id)} style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 17, color: '#C4B0A0', padding: '0 2px', lineHeight: 1,
+                  }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </SectionCard>
   )
 }
@@ -478,8 +494,8 @@ function SupplementSection({ items, checked, selectedDate, onToggle, onEditItems
 }
 
 // ── Exercise section ──────────────────────────────────────────
-function ExerciseModal({ onSave, onClose }) {
-  const [type, setType] = React.useState('瑜伽伸展')
+function ExerciseModal({ exerciseTypes, initialType, onSave, onClose }) {
+  const [type, setType] = React.useState(initialType || (exerciseTypes[0] || ''))
   const [subType, setSubType] = React.useState('')
   const [duration, setDuration] = React.useState('30')
   const [intensity, setIntensity] = React.useState('moderate')
@@ -497,7 +513,7 @@ function ExerciseModal({ onSave, onClose }) {
         {/* Type */}
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>運動類型</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 16 }}>
-          {EXERCISE_TYPES.map(t => (
+          {exerciseTypes.map(t => (
             <button key={t} onClick={() => setType(t)} style={{
               padding: '7px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
               border: '0.5px solid', fontWeight: type === t ? 500 : 400,
@@ -541,10 +557,75 @@ function ExerciseModal({ onSave, onClose }) {
   )
 }
 
-function ExerciseSection({ exercises, selectedDate, onAdd, onDelete }) {
+function ExerciseTypeModal({ types, onSave, onClose }) {
+  const [list, setList] = React.useState([...types])
+  const [newType, setNewType] = React.useState('')
+
+  function addType() {
+    const n = newType.trim()
+    if (!n || list.includes(n)) return
+    setList(l => [...l, n])
+    setNewType('')
+  }
+  function removeType(i) { setList(l => l.filter((_, j) => j !== i)) }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>管理運動類型</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+          {list.map((t, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-surface)', borderRadius: 8, padding: '8px 12px' }}>
+              <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{t}</span>
+              <button onClick={() => removeType(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#C07070', padding: '0 2px' }}>×</button>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <input type="text" value={newType} onChange={e => setNewType(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addType()}
+            placeholder="新增類型…" style={{ flex: 1 }} />
+          <button onClick={addType} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#EEF4EC', color: '#5A7A52', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>新增</button>
+        </div>
+        <button onClick={() => onSave(list)} className="btn-primary">儲存</button>
+      </div>
+    </div>
+  )
+}
+
+const WEEK_DAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
+
+function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDelete, onUpdateTypes }) {
   const [showModal, setShowModal] = React.useState(false)
+  const [showTypeModal, setShowTypeModal] = React.useState(false)
+  const [modalInitialType, setModalInitialType] = React.useState(null)
   const [deleteConfirm, setDeleteConfirm] = React.useState(null)
   const todayExercises = exercises.filter(e => e.date === selectedDate)
+  const weekDates = React.useMemo(() => getWeekDates(), [])
+  const today = todayKey()
+
+  // Long-press detection
+  const longPressTimer = React.useRef(null)
+  const didLongPress = React.useRef(false)
+
+  function startPress(type) {
+    didLongPress.current = false
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      setModalInitialType(type)
+      setShowModal(true)
+    }, 500)
+  }
+  function cancelPress() {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+  }
+  function endPress(type) {
+    cancelPress()
+    if (!didLongPress.current) {
+      onAdd(selectedDate, type, '', 30, 'moderate')
+    }
+  }
 
   const intensityLabel = k => INTENSITY_OPTS.find(o => o.key === k)?.label || k
 
@@ -552,32 +633,110 @@ function ExerciseSection({ exercises, selectedDate, onAdd, onDelete }) {
     <>
       <SectionCard tag="運動" tagBg="#D7DFD2" tagText="#5A7A52"
         headerRight={
-          <button onClick={() => setShowModal(true)} style={{
-            background: '#EEF4EC', border: '0.5px solid #C0D8B8', borderRadius: 8,
-            color: '#5A7A52', fontSize: 12, padding: '4px 10px', cursor: 'pointer',
-          }}>＋ 新增</button>
+          <button onClick={() => setShowTypeModal(true)} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 12, color: 'var(--text-muted)', padding: 0,
+          }}>管理類型</button>
         }>
-        {todayExercises.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '10px 0', color: 'var(--text-muted)', fontSize: 13 }}>
-            今天還沒有運動紀錄
+
+        {/* Quick-tap type buttons */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 8 }}>
+          {exerciseTypes.map(type => {
+            const countToday = todayExercises.filter(e => e.type === type).length
+            return (
+              <button
+                key={type}
+                onMouseDown={() => startPress(type)}
+                onMouseUp={() => endPress(type)}
+                onMouseLeave={cancelPress}
+                onTouchStart={e => { e.preventDefault(); startPress(type) }}
+                onTouchEnd={e => { e.preventDefault(); endPress(type) }}
+                onTouchCancel={cancelPress}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '7px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+                  border: '0.5px solid',
+                  borderColor: countToday > 0 ? '#A8C8A0' : 'var(--border-soft)',
+                  background: countToday > 0 ? '#EEF4EC' : 'var(--bg-surface)',
+                  color: countToday > 0 ? '#5A7A52' : 'var(--text-secondary)',
+                  fontWeight: countToday > 0 ? 500 : 400,
+                  userSelect: 'none', WebkitUserSelect: 'none',
+                }}>
+                {countToday > 0 && <span style={{ fontSize: 10 }}>✓</span>}
+                {type}
+              </button>
+            )
+          })}
+          <button
+            onClick={() => { setModalInitialType(null); setShowModal(true) }}
+            style={{
+              padding: '7px 12px', borderRadius: 20,
+              border: '0.5px dashed var(--border-soft)', background: 'transparent',
+              color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
+            }}>＋</button>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>點選快速記錄・長按填詳情</div>
+
+        {/* Week grid */}
+        <div style={{ marginBottom: 2 }}>
+          {/* Day header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', marginBottom: 3 }}>
+            <div />
+            {weekDates.map((d, i) => {
+              const isToday = d === today
+              const isSel = d === selectedDate
+              return (
+                <div key={d} style={{ textAlign: 'center', lineHeight: 1.3 }}>
+                  <div style={{ fontSize: 10, color: isToday ? '#5A7A52' : 'var(--text-muted)', fontWeight: isToday ? 600 : 400 }}>
+                    {WEEK_DAY_LABELS[i]}
+                  </div>
+                  <div style={{ fontSize: 9, color: isSel ? '#5A7A52' : 'var(--text-muted)', fontWeight: isSel ? 600 : 400 }}>
+                    {d.slice(8, 10)}
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {/* Type rows */}
+          {exerciseTypes.map(type => (
+            <div key={type} style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', alignItems: 'center', marginBottom: 5 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>
+                {type}
+              </div>
+              {weekDates.map(d => {
+                const hasLog = exercises.some(e => e.date === d && e.type === type)
+                const isSel = d === selectedDate
+                return (
+                  <div key={d} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 22 }}>
+                    <div style={{
+                      width: 13, height: 13, borderRadius: '50%',
+                      background: hasLog ? (isSel ? '#5A7A52' : '#A8C8A0') : 'transparent',
+                      border: `0.5px solid ${hasLog ? '#5A7A52' : '#D8CCBF'}`,
+                      transition: 'background 0.2s',
+                    }} />
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Logged exercises for selected date */}
+        {todayExercises.length > 0 && (
+          <div style={{ borderTop: '0.5px solid var(--border-soft)', marginTop: 8, paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
             {todayExercises.map(ex => (
               <div key={ex.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: 'var(--bg-surface)', borderRadius: 10, padding: '8px 12px',
+                background: 'var(--bg-surface)', borderRadius: 8, padding: '7px 10px',
               }}>
                 <div>
-                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{ex.type}</span>
-                  {ex.subType && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 6 }}>{ex.subType}</span>}
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                    {ex.durationMin} 分鐘 · {intensityLabel(ex.intensity)}
-                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{ex.type}</span>
+                  {ex.subType && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 5 }}>{ex.subType}</span>}
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 5 }}>{ex.durationMin}min · {intensityLabel(ex.intensity)}</span>
                 </div>
                 {deleteConfirm === ex.id ? (
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => { onDelete(ex.id); setDeleteConfirm(null) }} style={{ fontSize: 11, color: '#C07070', background: 'none', border: 'none', cursor: 'pointer' }}>確認刪除</button>
+                    <button onClick={() => { onDelete(ex.id); setDeleteConfirm(null) }} style={{ fontSize: 11, color: '#C07070', background: 'none', border: 'none', cursor: 'pointer' }}>確認</button>
                     <button onClick={() => setDeleteConfirm(null)} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>取消</button>
                   </div>
                 ) : (
@@ -588,13 +747,23 @@ function ExerciseSection({ exercises, selectedDate, onAdd, onDelete }) {
           </div>
         )}
       </SectionCard>
+
       {showModal && (
         <ExerciseModal
+          exerciseTypes={exerciseTypes}
+          initialType={modalInitialType}
           onSave={(type, subType, durationMin, intensity) => {
             onAdd(selectedDate, type, subType, durationMin, intensity)
             setShowModal(false)
           }}
           onClose={() => setShowModal(false)}
+        />
+      )}
+      {showTypeModal && (
+        <ExerciseTypeModal
+          types={exerciseTypes}
+          onSave={types => { onUpdateTypes(types); setShowTypeModal(false) }}
+          onClose={() => setShowTypeModal(false)}
         />
       )}
     </>
@@ -791,7 +960,7 @@ function CompletionCard({ done, total, streak }) {
 
 // ── Main page ─────────────────────────────────────────────────
 export default function HomePage({ store, onManageGroups }) {
-  const { state, toggleProductUseDate, groupDays, upsertBodyLog, addWater, resetWater, addExercise, deleteExercise, toggleSupplement, updateSupplementItems } = store
+  const { state, toggleProductUseDate, groupDays, upsertBodyLog, addWater, deleteWaterEntry, addExercise, deleteExercise, toggleSupplement, updateSupplementItems, updateExerciseTypes } = store
   const today = todayKey()
   const { products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins } = state
 
@@ -819,7 +988,9 @@ export default function HomePage({ store, onManageGroups }) {
   const pmDone = pmProducts.filter(p => isUsedOnDate(p.usageLog, selectedDate, 'pm')).length
 
   const bodyLog = bodyLogs[selectedDate] || null
-  const waterToday = waterLogs[selectedDate] || 0
+  const waterData = waterLogs[selectedDate]
+  const waterToday = typeof waterData === 'number' ? waterData : (waterData?.total || 0)
+  const waterEntries = (typeof waterData === 'object' && waterData !== null) ? (waterData.entries || []) : []
   const waterGoal = settings.waterGoalMl || 2000
   const supplementItems = settings.supplementItems || []
   const supplementNames = supplementItems.map(i => i.name)
@@ -896,7 +1067,7 @@ export default function HomePage({ store, onManageGroups }) {
       <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} />
 
       {/* 2. 飲水 */}
-      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} onAdd={(ml) => addWater(ml, selectedDate)} onReset={() => resetWater(selectedDate)} />
+      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} entries={waterEntries} onAdd={(ml) => addWater(ml, selectedDate)} onDeleteEntry={(id) => deleteWaterEntry(id, selectedDate)} />
 
       {/* 2. 保養（AM + PM 合一） */}
       {products.length > 0 ? (
@@ -917,7 +1088,7 @@ export default function HomePage({ store, onManageGroups }) {
       <SupplementSection items={supplementItems} checked={supplementChecked} selectedDate={selectedDate} onToggle={toggleSupplement} onEditItems={updateSupplementItems} />
 
       {/* 5. 運動 */}
-      <ExerciseSection exercises={exercises} selectedDate={selectedDate} onAdd={addExercise} onDelete={deleteExercise} />
+      <ExerciseSection exercises={exercises} selectedDate={selectedDate} exerciseTypes={settings.exerciseTypes || ['有氧', '重訓', '瑜珈／伸展']} onAdd={addExercise} onDelete={deleteExercise} onUpdateTypes={updateExerciseTypes} />
 
 
       {/* No groups nudge */}
