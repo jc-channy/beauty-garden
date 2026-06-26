@@ -184,91 +184,200 @@ function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat }) {
   )
 }
 
-// ── Water section ─────────────────────────────────────────────
-function WaterSection({ totalMl, goalMl, quickAmounts, entries, onAdd, onDeleteEntry }) {
-  const [customMode, setCustomMode] = React.useState(false)
+// ── Water Modal ───────────────────────────────────────────────
+function WaterModal({ quickAmounts, onAdd, onUpdateQuickAmounts, onClose }) {
+  const [editMode, setEditMode] = React.useState(false)
+  const [chips, setChips] = React.useState([...(quickAmounts || [200, 350, 500])])
   const [customVal, setCustomVal] = React.useState('')
-  const [showEntries, setShowEntries] = React.useState(false)
-  const pct = Math.min(100, goalMl > 0 ? Math.round((totalMl / goalMl) * 100) : 0)
-  const done = totalMl >= goalMl
+  const [newChipVal, setNewChipVal] = React.useState('')
+
+  function handleQuickAdd(ml) {
+    onAdd(ml)
+    onClose()
+  }
 
   function handleCustomAdd() {
     const ml = parseInt(customVal)
-    if (ml > 0) { onAdd(ml); setCustomVal(''); setCustomMode(false) }
+    if (ml > 0) { onAdd(ml); onClose() }
+  }
+
+  function updateChip(i, val) {
+    setChips(c => c.map((x, j) => j === i ? val : x))
+  }
+
+  function removeChip(i) {
+    setChips(c => c.filter((_, j) => j !== i))
+  }
+
+  function addChip() {
+    const v = parseInt(newChipVal)
+    if (v > 0 && chips.length < 6) {
+      setChips(c => [...c, v])
+      setNewChipVal('')
+    }
+  }
+
+  function saveEditMode() {
+    const valid = chips.map(v => parseInt(v)).filter(v => v > 0)
+    const final = valid.length ? valid : [200, 350, 500]
+    onUpdateQuickAmounts(final)
+    setChips(final)
+    setEditMode(false)
   }
 
   return (
-    <SectionCard tag="飲水" tagBg="#E6F1FB" tagText="#185FA5"
-      headerRight={<span style={{ fontSize: 12, color: done ? '#185FA5' : 'var(--text-muted)' }}>
-        {totalMl}ml / {goalMl}ml {done ? '✓' : ''}
-      </span>}>
-      {/* Progress bar */}
-      <div style={{ height: 10, background: '#EDE6DE', borderRadius: 6, overflow: 'hidden', marginBottom: 10 }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: done ? '#85B7EB' : '#B5D4F4', borderRadius: 6, transition: 'width 0.3s ease' }} />
-      </div>
-      {/* Quick buttons */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {(quickAmounts || [200, 350, 500]).map(ml => (
-          <button key={ml} onClick={() => onAdd(ml)} style={{
-            padding: '6px 14px', borderRadius: 10, border: '0.5px solid #B5D4F4',
-            background: '#E6F1FB', color: '#185FA5', fontSize: 13, cursor: 'pointer', fontWeight: 500,
-          }}>+{ml}</button>
-        ))}
-        {customMode ? (
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <input
-              type="number" inputMode="numeric" value={customVal}
-              onChange={e => setCustomVal(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCustomAdd()}
-              autoFocus
-              placeholder="ml"
-              style={{
-                width: 72, padding: '5px 10px', borderRadius: 10,
-                border: '0.5px solid #B5D4F4', background: '#E6F1FB',
-                color: '#185FA5', fontSize: 13, outline: 'none', fontFamily: 'inherit',
-              }}
-            />
-            <button onClick={handleCustomAdd} style={{ padding: '5px 10px', borderRadius: 10, border: 'none', background: '#85B7EB', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+</button>
-          </div>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 18 }}>喝了多少？</div>
+
+        {/* Quick chips */}
+        {!editMode ? (
+          <>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+              {chips.map((ml, i) => (
+                <button key={i} onClick={() => handleQuickAdd(ml)} style={{
+                  padding: '10px 18px', borderRadius: 20, border: '0.5px solid #B5D4F4',
+                  background: '#E6F1FB', color: '#185FA5', fontSize: 14, cursor: 'pointer', fontWeight: 500,
+                }}>+{ml} ml</button>
+              ))}
+            </div>
+            <button onClick={() => setEditMode(true)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 12, color: 'var(--text-muted)', padding: '0 0 16px', textDecoration: 'underline',
+            }}>編輯選項</button>
+          </>
         ) : (
-          <button onClick={() => setCustomMode(true)} style={{
-            padding: '6px 14px', borderRadius: 10,
-            border: '0.5px dashed #B5D4F4', background: 'transparent',
-            color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
-          }}>自訂</button>
-        )}
-      </div>
-      {/* Entries list */}
-      {entries.length > 0 && (
-        <div style={{ marginTop: 10 }}>
-          <button onClick={() => setShowEntries(v => !v)} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 11, color: 'var(--text-muted)', padding: 0,
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            <span>{showEntries ? '▾' : '▸'}</span>
-            <span>紀錄（{entries.length} 筆）</span>
-          </button>
-          {showEntries && (
-            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {entries.map(entry => (
-                <div key={entry.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'var(--bg-surface)', borderRadius: 8, padding: '6px 10px',
-                }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>{entry.time}</span>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: '#185FA5', flex: 1 }}>{entry.ml} ml</span>
-                  <button onClick={() => onDeleteEntry(entry.id)} style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 17, color: '#C4B0A0', padding: '0 2px', lineHeight: 1,
-                  }}>×</button>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>編輯快速選項</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+              {chips.map((ml, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="number" inputMode="numeric" value={ml}
+                    onChange={e => updateChip(i, e.target.value)}
+                    style={{ flex: 1, padding: '7px 12px', borderRadius: 10, border: '0.5px solid #B5D4F4', background: '#E6F1FB', color: '#185FA5', fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
+                  />
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>ml</span>
+                  <button onClick={() => removeChip(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#C07070', padding: '0 4px', flexShrink: 0 }}>×</button>
                 </div>
               ))}
             </div>
-          )}
+            {chips.length < 6 && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <input
+                  type="number" inputMode="numeric" value={newChipVal}
+                  onChange={e => setNewChipVal(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addChip()}
+                  placeholder="新增 ml…"
+                  style={{ flex: 1, padding: '7px 12px', borderRadius: 10, border: '0.5px dashed #B5D4F4', background: 'transparent', color: '#185FA5', fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
+                />
+                <button onClick={addChip} style={{ padding: '7px 14px', borderRadius: 10, border: 'none', background: '#B5D4F4', color: '#185FA5', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>＋</button>
+              </div>
+            )}
+            <button onClick={saveEditMode} style={{ width: '100%', padding: '10px', borderRadius: 10, border: 'none', background: '#EEF4EC', color: '#5A7A52', fontSize: 14, cursor: 'pointer', fontWeight: 500, marginBottom: 8 }}>完成</button>
+          </div>
+        )}
+
+        {/* Divider */}
+        <div style={{ height: '0.5px', background: 'var(--border-soft)', margin: '2px 0 14px' }} />
+
+        {/* Custom input */}
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>自訂</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="number" inputMode="numeric" value={customVal}
+            onChange={e => setCustomVal(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleCustomAdd()}
+            placeholder="輸入 ml…"
+            style={{ flex: 1 }}
+          />
+          <button onClick={handleCustomAdd} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: '#85B7EB', color: '#fff', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}>確認加水</button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Water section ─────────────────────────────────────────────
+function WaterSection({ totalMl, goalMl, quickAmounts, entries, onAdd, onDeleteEntry, onUpdateQuickAmounts }) {
+  const [showModal, setShowModal] = React.useState(false)
+  const [showEntries, setShowEntries] = React.useState(false)
+  const pct = Math.min(100, goalMl > 0 ? Math.round((totalMl / goalMl) * 100) : 0)
+  const done = totalMl >= goalMl
+  const remaining = goalMl - totalMl
+
+  function motivationText() {
+    if (totalMl === 0) return '今天還沒喝水，先來一杯吧 💧'
+    if (!done) return `再 ${remaining} ml 就達標，繼續加油 ✦`
+    return '今天水喝夠了，做得很好 🎉'
+  }
+
+  return (
+    <>
+      <SectionCard tag="飲水" tagBg="#E6F1FB" tagText="#185FA5"
+        headerRight={<span style={{ fontSize: 12, color: done ? '#185FA5' : 'var(--text-muted)' }}>
+          {totalMl} / {goalMl} ml {done ? '✓' : ''}
+        </span>}>
+
+        {/* Progress bar */}
+        <div style={{ height: 16, background: '#EDE6DE', borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
+          <div style={{ width: `${pct}%`, height: '100%', background: done ? '#85B7EB' : '#B5D4F4', borderRadius: 8, transition: 'width 0.4s ease' }} />
+        </div>
+
+        {/* Motivation text */}
+        <div style={{ fontSize: 12, color: done ? '#185FA5' : 'var(--text-muted)', marginBottom: 12 }}>
+          {motivationText()}
+        </div>
+
+        {/* ＋ 喝水 button */}
+        <button onClick={() => setShowModal(true)} style={{
+          width: '100%', padding: '11px', borderRadius: 12, border: 'none',
+          background: '#E6F1FB', color: '#185FA5', fontSize: 15, fontWeight: 500,
+          cursor: 'pointer', transition: 'opacity 0.15s',
+        }}>＋ 喝水</button>
+
+        {/* Entries list */}
+        {entries.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <button onClick={() => setShowEntries(v => !v)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 11, color: 'var(--text-muted)', padding: 0,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <span>{showEntries ? '▾' : '▸'}</span>
+              <span>紀錄（{entries.length} 筆）</span>
+            </button>
+            {showEntries && (
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {entries.map(entry => (
+                  <div key={entry.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    background: 'var(--bg-surface)', borderRadius: 8, padding: '6px 10px',
+                  }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>{entry.time}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#185FA5', flex: 1 }}>{entry.ml} ml</span>
+                    <button onClick={() => onDeleteEntry(entry.id)} style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 17, color: '#C4B0A0', padding: '0 2px', lineHeight: 1,
+                    }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </SectionCard>
+
+      {showModal && (
+        <WaterModal
+          quickAmounts={quickAmounts}
+          onAdd={onAdd}
+          onUpdateQuickAmounts={onUpdateQuickAmounts}
+          onClose={() => setShowModal(false)}
+        />
       )}
-    </SectionCard>
+    </>
   )
 }
 
@@ -947,7 +1056,7 @@ function CompletionCard({ done, total, streak }) {
 
 // ── Main page ─────────────────────────────────────────────────
 export default function HomePage({ store, onManageGroups }) {
-  const { state, toggleProductUseDate, groupDays, upsertBodyLog, addWater, deleteWaterEntry, addExercise, deleteExercise, toggleSupplement, updateSupplementItems, updateExerciseTypes } = store
+  const { state, toggleProductUseDate, groupDays, upsertBodyLog, addWater, deleteWaterEntry, addExercise, deleteExercise, toggleSupplement, updateSupplementItems, updateExerciseTypes, updateBodyGoals } = store
   const today = todayKey()
   const { products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins } = state
 
@@ -1054,7 +1163,7 @@ export default function HomePage({ store, onManageGroups }) {
       <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} />
 
       {/* 2. 飲水 */}
-      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} entries={waterEntries} onAdd={(ml) => addWater(ml, selectedDate)} onDeleteEntry={(id) => deleteWaterEntry(id, selectedDate)} />
+      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} entries={waterEntries} onAdd={(ml) => addWater(ml, selectedDate)} onDeleteEntry={(id) => deleteWaterEntry(id, selectedDate)} onUpdateQuickAmounts={(amounts) => updateBodyGoals({ waterQuickAmounts: amounts })} />
 
       {/* 2. 保養（AM + PM 合一） */}
       {products.length > 0 ? (

@@ -27,7 +27,6 @@ export default function MinePage({ store, onNavigate }) {
   const [goalWeight, setGoalWeight] = useState(settings.bodyGoalWeight ?? '')
   const [goalFat, setGoalFat] = useState(settings.bodyGoalFat ?? '')
   const [goalWater, setGoalWater] = useState(settings.waterGoalMl ?? 2000)
-  const [quickAmts, setQuickAmts] = useState((settings.waterQuickAmounts || [200, 350, 500]).join(', '))
   const [saved, setSaved] = useState(false)
 
   React.useEffect(() => {
@@ -35,17 +34,14 @@ export default function MinePage({ store, onNavigate }) {
     setGoalWeight(settings.bodyGoalWeight ?? '')
     setGoalFat(settings.bodyGoalFat ?? '')
     setGoalWater(settings.waterGoalMl ?? 2000)
-    setQuickAmts((settings.waterQuickAmounts || [200, 350, 500]).join(', '))
-  }, [settings.userName, settings.bodyGoalWeight, settings.bodyGoalFat, settings.waterGoalMl, settings.waterQuickAmounts])
+  }, [settings.userName, settings.bodyGoalWeight, settings.bodyGoalFat, settings.waterGoalMl])
 
   function handleSave() {
-    const parsedAmounts = quickAmts.split(/[,，\s]+/).map(s => parseInt(s.trim())).filter(n => n > 0)
     updateSettings({ userName })
     updateBodyGoals({
       bodyGoalWeight: goalWeight !== '' ? parseFloat(goalWeight) : null,
       bodyGoalFat: goalFat !== '' ? parseFloat(goalFat) : null,
       waterGoalMl: parseInt(goalWater) || 2000,
-      waterQuickAmounts: parsedAmounts.length ? parsedAmounts : [200, 350, 500],
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -72,10 +68,6 @@ export default function MinePage({ store, onNavigate }) {
         <div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>每日飲水目標 (ml)</div>
           <input type="number" inputMode="numeric" value={goalWater} onChange={e => setGoalWater(e.target.value)} placeholder="2000" />
-        </div>
-        <div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>快速加水選項 (ml，逗號分隔)</div>
-          <input type="text" inputMode="numeric" value={quickAmts} onChange={e => setQuickAmts(e.target.value)} placeholder="200, 350, 500" />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1 }}>
