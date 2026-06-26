@@ -282,7 +282,8 @@ function SupplementEditModal({ items, onSave, onClose }) {
     function onMove(e) {
       if (dragStateRef.current.dragIdx === null) return
       e.preventDefault()
-      const idx = getIdxFromY(e.touches[0].clientY)
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY
+      const idx = getIdxFromY(clientY)
       dragStateRef.current.overIdx = idx; setOverIdx(idx)
     }
     function onEnd() {
@@ -297,7 +298,14 @@ function SupplementEditModal({ items, onSave, onClose }) {
     }
     document.addEventListener('touchmove', onMove, { passive: false })
     document.addEventListener('touchend', onEnd)
-    return () => { document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onEnd) }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onEnd)
+    return () => {
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('touchend', onEnd)
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onEnd)
+    }
   }, [])
 
   // ── item helpers ─────────────────────────────────────────────
@@ -323,7 +331,7 @@ function SupplementEditModal({ items, onSave, onClose }) {
         <div className="modal-handle" />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>管理營養品</div>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>⠿ 長按拖曳排序</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>⠿ 拖曳排序</span>
         </div>
 
         <div ref={listRef}>
@@ -345,7 +353,7 @@ function SupplementEditModal({ items, onSave, onClose }) {
                   border: `0.5px solid ${isExp ? '#AFA9EC' : 'var(--border-soft)'}`,
                   borderRadius: isExp ? '10px 10px 0 0' : 10,
                 }}>
-                  <div onTouchStart={e => handleDragStart(e, i)} style={{ fontSize: 16, color: 'var(--text-muted)', padding: '2px 4px', userSelect: 'none', touchAction: 'none', flexShrink: 0, cursor: 'grab' }}>⠿</div>
+                  <div onTouchStart={e => handleDragStart(e, i)} onMouseDown={e => handleDragStart(e, i)} style={{ fontSize: 16, color: 'var(--text-muted)', padding: '2px 4px', userSelect: 'none', touchAction: 'none', flexShrink: 0, cursor: 'grab' }}>⠿</div>
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', cursor: 'pointer' }} onClick={() => setExpandedIdx(isExp ? null : i)}>
                     {/* 時機 badges 在前 */}
                     {(item.timings || []).map(t => {
