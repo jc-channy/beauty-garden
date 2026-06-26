@@ -866,12 +866,34 @@ function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDele
   )
 }
 
+// ── Functional caution map ────────────────────────────────────
+const CAUTION_BY_CATEGORY = {
+  '維他命 C':    '白天使用請搭配防曬',
+  '美白精華':    '白天請加強防曬',
+  '美白':        '白天請加強防曬',
+  'A 醛':        '建議晚上使用，初期每週 2～3 次慢慢建立耐受',
+  'A 醇':        '建議晚上使用，初期每週 2～3 次慢慢建立耐受',
+  'A 醛／A 醇':  '建議晚上使用，初期每週 2～3 次慢慢建立耐受',
+  '酸類':        '建議晚上使用，避免與 A 醛同晚疊擦',
+  '果酸':        '建議晚上使用，避免與 A 醛同晚疊擦',
+  '水楊酸':      '建議晚上使用，避免與 A 醛同晚疊擦',
+  '去角質':      '每週約 1～2 次即可，避免過度去角質',
+  '面膜':        '敷完後仍需擦乳液或乳霜鎖水',
+}
+
+function getCautionText(product) {
+  if (product.caution && product.caution.length > 0) return product.caution[0]
+  if (product.category && CAUTION_BY_CATEGORY[product.category]) return CAUTION_BY_CATEGORY[product.category]
+  return null
+}
+
 // ── Skincare check item (swipe gesture) ───────────────────────
 function CheckItem({ product, usedToday, onToggle, section, index }) {
   const displayName = product.nickname || product.name || product.brand || '未命名'
   const subName = product.nickname ? [product.brand, product.name].filter(Boolean).join(' ') : ''
   const mismatch = section && product.timeOfDay &&
     ((section === 'am' && product.timeOfDay === 'pm') || (section === 'pm' && product.timeOfDay === 'am'))
+  const cautionText = getCautionText(product)
 
   const touchRef = React.useRef(null)
   const [swipeX, setSwipeX] = React.useState(0)
@@ -900,7 +922,6 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd} onClick={handleClick}
         style={{
-          display: 'flex', alignItems: 'center', gap: 9, padding: '12px 12px',
           background: usedToday ? '#F6FAF5' : 'var(--bg-card)',
           borderRadius: 10,
           border: `0.5px solid ${mismatch ? '#E8C080' : usedToday ? '#D0DFCA' : 'var(--border-soft)'}`,
@@ -908,8 +929,10 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
           cursor: 'pointer', touchAction: 'pan-y',
           transform: `translateX(${clampedX}px)`,
           position: 'relative', zIndex: 1, userSelect: 'none',
+          overflow: 'hidden',
         }}
       >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '12px 12px' }}>
         {/* 序號 / 打勾 */}
         <div style={{
           width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
@@ -944,12 +967,20 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
               {product.timeOfDay === 'pm' ? '🌙晚' : '☀️早'}
             </span>
           )}
-          {(product.caution || []).length > 0 && !usedToday && (
-            <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', whiteSpace: 'nowrap' }}>⚠ {product.caution[0].slice(0, 6)}</span>
-          )}
         </div>
       </div>
+      {cautionText && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 6,
+          padding: '6px 12px 8px',
+          borderTop: '0.5px solid #F2EAE0',
+        }}>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#C8900A', flexShrink: 0, marginTop: 5 }} />
+          <span style={{ fontSize: 11, color: '#A07030', lineHeight: 1.45 }}>{cautionText}</span>
+        </div>
+      )}
     </div>
+  </div>
   )
 }
 
