@@ -446,36 +446,32 @@ function SupplementSection({ items, checked, selectedDate, onToggle, onEditItems
             {items.map(item => {
               const done = checked.includes(item.name)
               const timings = item.timings || []
+              const firstTiming = timings[0]
+              const tc = (firstTiming && TIMING_COLORS[firstTiming]) || { bg: '#EEEDFE', text: '#534AB7' }
               return (
-                {(() => {
-                  const firstTiming = timings[0]
-                  const tc = (firstTiming && TIMING_COLORS[firstTiming]) || { bg: '#EEEDFE', text: '#534AB7' }
-                  return (
-                    <button key={item.name} onClick={() => onToggle(item.name, selectedDate)} style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4,
-                      padding: '7px 12px', borderRadius: 16,
-                      background: done ? tc.bg : 'var(--bg-surface)',
-                      border: `0.5px solid ${done ? tc.text + '50' : 'var(--border-soft)'}`,
-                      cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left',
-                    }}>
-                      {timings.length > 0 && (
-                        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                          {timings.map(t => {
-                            const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
-                            return (
-                              <span key={t} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, lineHeight: 1.5 }}>{t}</span>
-                            )
-                          })}
-                        </div>
-                      )}
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        {done && <span style={{ width: 13, height: 13, borderRadius: '50%', background: tc.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', flexShrink: 0 }}>✓</span>}
-                        <span style={{ fontSize: 14, color: done ? tc.text : 'var(--text-secondary)', fontWeight: done ? 500 : 400 }}>{item.name}</span>
-                        {item.amount ? <span style={{ fontSize: 11, color: done ? tc.text + 'AA' : 'var(--text-muted)' }}>· {item.amount}</span> : null}
-                      </span>
-                    </button>
-                  )
-                })()}
+                <button key={item.name} onClick={() => onToggle(item.name, selectedDate)} style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4,
+                  padding: '7px 12px', borderRadius: 16,
+                  background: done ? tc.bg : 'var(--bg-surface)',
+                  border: `0.5px solid ${done ? tc.text + '50' : 'var(--border-soft)'}`,
+                  cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left',
+                }}>
+                  {timings.length > 0 && (
+                    <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                      {timings.map(t => {
+                        const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
+                        return (
+                          <span key={t} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, lineHeight: 1.5 }}>{t}</span>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {done && <span style={{ width: 13, height: 13, borderRadius: '50%', background: tc.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', flexShrink: 0 }}>✓</span>}
+                    <span style={{ fontSize: 14, color: done ? tc.text : 'var(--text-secondary)', fontWeight: done ? 500 : 400 }}>{item.name}</span>
+                    {item.amount ? <span style={{ fontSize: 11, color: done ? tc.text + 'AA' : 'var(--text-muted)' }}>· {item.amount}</span> : null}
+                  </span>
+                </button>
               )
             })}
             {allDone && <span style={{ fontSize: 11, color: '#534AB7', alignSelf: 'center', marginLeft: 2 }}>全打了 ✦</span>}
