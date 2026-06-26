@@ -808,6 +808,9 @@ export default function HomePage({ store, onManageGroups }) {
       {/* 1. 體態 */}
       <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} />
 
+      {/* 2. 飲水 */}
+      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} onAdd={(ml) => addWater(ml, selectedDate)} onReset={() => resetWater(selectedDate)} />
+
       {/* Group switcher (compact) */}
       {groups.length > 0 && (
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', marginBottom: 8 }}>
@@ -844,9 +847,6 @@ export default function HomePage({ store, onManageGroups }) {
           <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>前往「我的」頁面新增保養品</div>
         </div>
       )}
-
-      {/* 3. 飲水 */}
-      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} onAdd={(ml) => addWater(ml, selectedDate)} onReset={() => resetWater(selectedDate)} />
 
       {/* 4. 營養品 */}
       <SupplementSection items={supplementItems} checked={supplementChecked} selectedDate={selectedDate} onToggle={toggleSupplement} onEditItems={updateSupplementItems} />
