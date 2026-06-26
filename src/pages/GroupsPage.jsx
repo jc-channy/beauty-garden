@@ -144,89 +144,6 @@ function ProductPicker({ products, excludeIds, onAdd, onClose }) {
 
 const DOW_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 
-// ── Skincare reference data ───────────────────────────────────
-const SKINCARE_REFERENCE = {
-  am: [
-    { name: '化妝水',         tip: '輕拍至吸收即可，幫助後續保養吸收' },
-    { name: '保濕／修護精華', tip: '先擦最輕薄的精華，建立肌膚保濕基礎' },
-    { name: '功能型精華',     tip: '維他命 C、抗氧化等，依產品建議使用' },
-    { name: '眼霜',           tip: '無名指輕點眼周，不要來回拉扯肌膚' },
-    { name: '乳液／乳霜',    tip: '鎖住前面保養成分，夏天可依膚況減少用量' },
-    { name: '防曬',           tip: '外出前 15～20 分鐘完成，臉與脖子都要擦', highlight: true },
-  ],
-  pm: [
-    { name: '化妝水',            tip: '補充水分，幫助後續保養吸收' },
-    { name: '保濕／修護精華',    tip: '先使用最輕薄的精華，修護肌膚屏障' },
-    { name: '功能型精華',        tip: '依產品建議使用，不一定每天都需要擦' },
-    { name: '眼霜',              tip: '少量即可，輕點按壓至吸收' },
-    { name: '乳液／乳霜',       tip: '最後鎖水，乾燥時可適度增加用量' },
-    { name: '唇部保養（選用）', tip: '睡前厚敷護唇膏或唇膜，加強修護' },
-  ],
-}
-
-function SkincareReferencePanel() {
-  const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState('am')
-  const steps = SKINCARE_REFERENCE[tab]
-
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: open ? '#F4F0EB' : 'var(--bg-surface)',
-          border: '0.5px solid var(--border-soft)',
-          borderRadius: open ? '12px 12px 0 0' : 12,
-          padding: '9px 12px', cursor: 'pointer',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 7, background: '#F2E6D9', color: '#8A6040' }}>參考</span>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>標準保養順序 + Tips</span>
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', transform: open ? 'rotate(90deg)' : 'none', display: 'inline-block', transition: 'transform 0.2s' }}>›</span>
-      </button>
-
-      {open && (
-        <div style={{ border: '0.5px solid var(--border-soft)', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '10px 12px', background: '#fff' }}>
-          {/* AM / PM tabs */}
-          <div style={{ display: 'flex', background: '#F4F0EB', borderRadius: 10, padding: 3, marginBottom: 10 }}>
-            {[{ key: 'am', label: '☀️ 白天' }, { key: 'pm', label: '🌙 晚上' }].map(({ key, label }) => (
-              <button key={key} onClick={() => setTab(key)} style={{
-                flex: 1, padding: '5px 0', borderRadius: 8, border: 'none',
-                fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                background: tab === key ? '#fff' : 'transparent',
-                color: tab === key ? '#8A6040' : 'var(--text-muted)',
-              }}>{label}</button>
-            ))}
-          </div>
-
-          {/* Steps */}
-          {steps.map((s, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'flex-start', gap: 9,
-              padding: '7px 0',
-              borderBottom: i < steps.length - 1 ? '0.5px solid #F4F0EB' : 'none',
-            }}>
-              <div style={{
-                width: 20, height: 20, borderRadius: '50%', flexShrink: 0, marginTop: 1,
-                background: s.highlight ? '#FEF3C0' : '#F2E6D9',
-                color: s.highlight ? '#7A5018' : '#8A6040',
-                fontSize: 10, fontWeight: 500,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>{i + 1}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: s.highlight ? '#B07820' : 'var(--text-muted)', lineHeight: 1.4 }}>{s.tip}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ── Group card ────────────────────────────────────────────────
 function GroupCard({ group, products, onUpdate, onDelete, groupDays, setGroupTargetDays }) {
@@ -334,9 +251,6 @@ function GroupCard({ group, products, onUpdate, onDelete, groupDays, setGroupTar
       {/* Expanded content */}
       {expanded && !editing && (
         <div style={{ borderTop: '0.5px solid var(--border-soft)', padding: '12px 14px' }}>
-          {/* Reference panel */}
-          <SkincareReferencePanel />
-
           {/* AM section */}
           <SectionBlock
             title="🌤 早上"

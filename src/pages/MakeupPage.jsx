@@ -151,6 +151,52 @@ const ROUTINES = {
   },
 }
 
+// ── Skincare reference data ───────────────────────────────────
+const SKINCARE_STEPS = {
+  am: [
+    { name: '化妝水',         tip: '輕拍至吸收即可，幫助後續保養吸收' },
+    { name: '保濕／修護精華', tip: '先擦最輕薄的精華，建立肌膚保濕基礎' },
+    { name: '功能型精華',     tip: '維他命 C、抗氧化等，依產品建議使用' },
+    { name: '眼霜',           tip: '無名指輕點眼周，不要來回拉扯肌膚' },
+    { name: '乳液／乳霜',    tip: '鎖住前面保養成分，夏天可依膚況減少用量' },
+    { name: '防曬',           tip: '外出前 15～20 分鐘完成，臉與脖子都要擦', highlight: true },
+  ],
+  pm: [
+    { name: '化妝水',            tip: '補充水分，幫助後續保養吸收' },
+    { name: '保濕／修護精華',    tip: '先使用最輕薄的精華，修護肌膚屏障' },
+    { name: '功能型精華',        tip: '依產品建議使用，不一定每天都需要擦' },
+    { name: '眼霜',              tip: '少量即可，輕點按壓至吸收' },
+    { name: '乳液／乳霜',       tip: '最後鎖水，乾燥時可適度增加用量' },
+    { name: '唇部保養（選用）', tip: '睡前厚敷護唇膏或唇膜，加強修護' },
+  ],
+}
+
+function SkincareStepItem({ step, index }) {
+  return (
+    <div style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border-soft)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <div style={{
+          width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+          background: step.highlight ? '#FEF3C0' : '#F2E6D9',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, fontWeight: 500,
+          color: step.highlight ? '#7A5018' : '#8A6040',
+          marginTop: 1,
+        }}>{index + 1}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 4 }}>{step.name}</div>
+          <div style={{
+            fontSize: 13, lineHeight: 1.6,
+            color: step.highlight ? '#8A5A10' : 'var(--text-secondary)',
+            background: step.highlight ? '#FEF8E0' : 'var(--bg-surface)',
+            borderRadius: 8, padding: '6px 10px',
+          }}>{step.tip}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function StepItem({ step, color }) {
   return (
     <div style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border-soft)' }}>
@@ -179,13 +225,18 @@ function StepItem({ step, color }) {
 }
 
 export default function MakeupPage({ onBack }) {
+  const [page, setPage] = useState('makeup')
   const [activeKey, setActiveKey] = useState('full')
+  const [skinTab, setSkinTab] = useState('am')
   const routine = ROUTINES[activeKey]
+
+  const pageTitle = page === 'makeup' ? '化妝順序' : '保養流程'
+  const pageSub   = page === 'makeup' ? '每步驟附帶小技巧' : '標準步驟 + 使用提醒'
 
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 14 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         {onBack && (
           <button onClick={onBack} style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -193,54 +244,107 @@ export default function MakeupPage({ onBack }) {
           }}>‹</button>
         )}
         <div>
-          <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>化妝順序</div>
-          <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 2 }}>每步驟附帶小技巧</div>
+          <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>{pageTitle}</div>
+          <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 2 }}>{pageSub}</div>
         </div>
       </div>
 
-      {/* Tab switcher */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-        {Object.entries(ROUTINES).map(([key, r]) => {
-          const sel = key === activeKey
+      {/* Page switcher */}
+      <div style={{ display: 'flex', background: 'var(--bg-surface)', borderRadius: 14, padding: 4, marginBottom: 20 }}>
+        {[
+          { key: 'makeup', label: '💄 化妝順序' },
+          { key: 'skincare', label: '✿ 保養流程' },
+        ].map(({ key, label }) => {
+          const sel = page === key
           return (
-            <button key={key} onClick={() => setActiveKey(key)} style={{
-              flex: 1, padding: '9px 6px', borderRadius: 12, border: '0.5px solid',
-              borderColor: sel ? '#C8A87A' : 'var(--border-soft)',
-              background: sel ? '#F2E6D9' : 'var(--bg-card)',
-              color: sel ? '#8A6A40' : 'var(--text-muted)',
-              cursor: 'pointer', fontWeight: sel ? 500 : 400,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-            }}>
-              <span style={{ fontSize: 13 }}>{r.label}</span>
-              <span style={{ fontSize: 11, opacity: 0.8 }}>{r.desc}</span>
-            </button>
+            <button key={key} onClick={() => setPage(key)} style={{
+              flex: 1, padding: '9px 0', borderRadius: 10, border: 'none',
+              background: sel ? 'var(--bg-card)' : 'transparent',
+              color: sel ? 'var(--text-primary)' : 'var(--text-muted)',
+              fontSize: 14, fontWeight: sel ? 500 : 400,
+              cursor: 'pointer', transition: 'all 0.15s',
+              boxShadow: sel ? '0 1px 4px rgba(120,90,70,0.08)' : 'none',
+            }}>{label}</button>
           )
         })}
       </div>
 
-      {/* Sections */}
-      {routine.sections.map((section, si) => {
-        const color = SECTION_COLORS[si % SECTION_COLORS.length]
-        return (
-          <div key={si} style={{ marginBottom: 20 }}>
-            {/* Colored section tag */}
-            <div style={{
-              display: 'inline-flex', alignItems: 'center',
-              padding: '3px 12px', borderRadius: 20,
-              background: color.bg, color: color.text,
-              fontSize: 11, fontWeight: 500,
-              marginBottom: 8,
-            }}>
-              {section.title}
-            </div>
-            <div className="card" style={{ padding: '0 14px' }}>
-              {section.steps.map((step, i) => (
-                <StepItem key={i} step={step} color={color} />
-              ))}
-            </div>
+      {/* ── 化妝順序 ── */}
+      {page === 'makeup' && (
+        <>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+            {Object.entries(ROUTINES).map(([key, r]) => {
+              const sel = key === activeKey
+              return (
+                <button key={key} onClick={() => setActiveKey(key)} style={{
+                  flex: 1, padding: '9px 6px', borderRadius: 12, border: '0.5px solid',
+                  borderColor: sel ? '#C8A87A' : 'var(--border-soft)',
+                  background: sel ? '#F2E6D9' : 'var(--bg-card)',
+                  color: sel ? '#8A6A40' : 'var(--text-muted)',
+                  cursor: 'pointer', fontWeight: sel ? 500 : 400,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                }}>
+                  <span style={{ fontSize: 13 }}>{r.label}</span>
+                  <span style={{ fontSize: 11, opacity: 0.8 }}>{r.desc}</span>
+                </button>
+              )
+            })}
           </div>
-        )
-      })}
+
+          {routine.sections.map((section, si) => {
+            const color = SECTION_COLORS[si % SECTION_COLORS.length]
+            return (
+              <div key={si} style={{ marginBottom: 20 }}>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  padding: '3px 12px', borderRadius: 20,
+                  background: color.bg, color: color.text,
+                  fontSize: 11, fontWeight: 500, marginBottom: 8,
+                }}>{section.title}</div>
+                <div className="card" style={{ padding: '0 14px' }}>
+                  {section.steps.map((step, i) => (
+                    <StepItem key={i} step={step} color={color} />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </>
+      )}
+
+      {/* ── 保養流程 ── */}
+      {page === 'skincare' && (
+        <>
+          {/* AM / PM tabs */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+            {[
+              { key: 'am', label: '☀️ 白天', desc: '6 步驟' },
+              { key: 'pm', label: '🌙 晚上', desc: '6 步驟' },
+            ].map(({ key, label, desc }) => {
+              const sel = skinTab === key
+              return (
+                <button key={key} onClick={() => setSkinTab(key)} style={{
+                  flex: 1, padding: '9px 6px', borderRadius: 12, border: '0.5px solid',
+                  borderColor: sel ? '#C8A87A' : 'var(--border-soft)',
+                  background: sel ? '#F2E6D9' : 'var(--bg-card)',
+                  color: sel ? '#8A6A40' : 'var(--text-muted)',
+                  cursor: 'pointer', fontWeight: sel ? 500 : 400,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                }}>
+                  <span style={{ fontSize: 13 }}>{label}</span>
+                  <span style={{ fontSize: 11, opacity: 0.8 }}>{desc}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="card" style={{ padding: '0 14px' }}>
+            {SKINCARE_STEPS[skinTab].map((step, i) => (
+              <SkincareStepItem key={i} step={step} index={i} />
+            ))}
+          </div>
+        </>
+      )}
 
       <div style={{ height: 8 }} />
     </div>
