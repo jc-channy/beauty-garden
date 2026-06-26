@@ -1,11 +1,11 @@
 import React from 'react'
-import { todayKey, localDateStr, CATEGORY_COLORS, isUsedOnDate, getWeekDates } from '../store/useStore.js'
+import { todayKey, localDateStr, CATEGORY_COLORS, isUsedOnDate } from '../store/useStore.js'
 
 const DOW = ['日', '一', '二', '三', '四', '五', '六']
 
 const INTENSITY_OPTS = [
-  { key: 'light',    label: '輕度' },
-  { key: 'moderate', label: '中度' },
+  { key: 'light',    label: '只是動動' },
+  { key: 'moderate', label: '蠻認真的' },
   { key: 'intense',  label: '高強度' },
 ]
 
@@ -490,61 +490,70 @@ function SupplementSection({ items, checked, selectedDate, onToggle, onEditItems
 }
 
 // ── Exercise section ──────────────────────────────────────────
-function ExerciseModal({ exerciseTypes, initialType, onSave, onClose }) {
-  const [type, setType] = React.useState(initialType || (exerciseTypes[0] || ''))
-  const [subType, setSubType] = React.useState('')
-  const [duration, setDuration] = React.useState('30')
+const DURATION_PRESETS = [10, 15, 20, 30]
+
+function ExerciseModal({ typeName, onSave, onClose }) {
+  const [duration, setDuration] = React.useState(30)
+  const [customMode, setCustomMode] = React.useState(false)
+  const [customVal, setCustomVal] = React.useState('')
   const [intensity, setIntensity] = React.useState('moderate')
 
   function handleSave() {
-    onSave(type, subType.trim(), parseInt(duration) || 30, intensity)
+    const d = customMode ? (parseInt(customVal) || 30) : duration
+    onSave(d, intensity)
   }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
-        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 18 }}>新增運動</div>
+        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 18 }}>{typeName}</div>
 
-        {/* Type */}
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>運動類型</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 16 }}>
-          {exerciseTypes.map(t => (
-            <button key={t} onClick={() => setType(t)} style={{
-              padding: '7px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
-              border: '0.5px solid', fontWeight: type === t ? 500 : 400,
-              borderColor: type === t ? '#A8C8A0' : 'var(--border-soft)',
-              background: type === t ? '#EEF4EC' : 'var(--bg-surface)',
-              color: type === t ? '#5A7A52' : 'var(--text-secondary)',
-            }}>{t}</button>
+        {/* Duration chips */}
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>時長</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 18 }}>
+          {DURATION_PRESETS.map(d => (
+            <button key={d} onClick={() => { setDuration(d); setCustomMode(false) }} style={{
+              padding: '7px 16px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+              border: '0.5px solid',
+              borderColor: !customMode && duration === d ? '#A8C8A0' : 'var(--border-soft)',
+              background: !customMode && duration === d ? '#EEF4EC' : 'var(--bg-surface)',
+              color: !customMode && duration === d ? '#5A7A52' : 'var(--text-secondary)',
+              fontWeight: !customMode && duration === d ? 500 : 400,
+            }}>{d} 分</button>
           ))}
+          {customMode ? (
+            <input
+              type="number" inputMode="numeric" value={customVal}
+              onChange={e => setCustomVal(e.target.value)}
+              autoFocus placeholder="分鐘"
+              style={{
+                width: 72, padding: '6px 10px', borderRadius: 20,
+                border: '0.5px solid #A8C8A0', background: '#EEF4EC',
+                color: '#5A7A52', fontSize: 13, outline: 'none',
+                fontFamily: 'inherit', textAlign: 'center',
+              }}
+            />
+          ) : (
+            <button onClick={() => setCustomMode(true)} style={{
+              padding: '7px 16px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+              border: '0.5px dashed var(--border-soft)', background: 'transparent', color: 'var(--text-muted)',
+            }}>自填</button>
+          )}
         </div>
 
-        {/* Sub-type */}
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>細項（選填）</div>
-        <input type="text" value={subType} onChange={e => setSubType(e.target.value)} placeholder="例：上半身、核心、跑步…" style={{ marginBottom: 16 }} />
-
-        {/* Duration + Intensity in one row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>時長（分鐘）</div>
-            <input type="number" inputMode="numeric" value={duration} onChange={e => setDuration(e.target.value)} style={{ textAlign: 'center' }} />
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>強度</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {INTENSITY_OPTS.map(opt => (
-                <button key={opt.key} onClick={() => setIntensity(opt.key)} style={{
-                  padding: '5px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
-                  border: '0.5px solid', textAlign: 'center',
-                  borderColor: intensity === opt.key ? '#A8C8A0' : 'var(--border-soft)',
-                  background: intensity === opt.key ? '#EEF4EC' : 'var(--bg-surface)',
-                  color: intensity === opt.key ? '#5A7A52' : 'var(--text-secondary)',
-                  fontWeight: intensity === opt.key ? 500 : 400,
-                }}>{opt.label}</button>
-              ))}
-            </div>
-          </div>
+        {/* Intensity */}
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>強度</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 22 }}>
+          {INTENSITY_OPTS.map(opt => (
+            <button key={opt.key} onClick={() => setIntensity(opt.key)} style={{
+              padding: '11px', borderRadius: 10, fontSize: 14, cursor: 'pointer',
+              border: '0.5px solid', textAlign: 'center', fontWeight: intensity === opt.key ? 500 : 400,
+              borderColor: intensity === opt.key ? '#A8C8A0' : 'var(--border-soft)',
+              background: intensity === opt.key ? '#EEF4EC' : 'var(--bg-surface)',
+              color: intensity === opt.key ? '#5A7A52' : 'var(--text-secondary)',
+            }}>{opt.label}</button>
+          ))}
         </div>
 
         <button onClick={handleSave} className="btn-primary">儲存</button>
@@ -590,40 +599,20 @@ function ExerciseTypeModal({ types, onSave, onClose }) {
   )
 }
 
-const WEEK_DAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
-
 function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDelete, onUpdateTypes }) {
-  const [showModal, setShowModal] = React.useState(false)
+  const [activeModal, setActiveModal] = React.useState(null) // typeName string
   const [showTypeModal, setShowTypeModal] = React.useState(false)
-  const [modalInitialType, setModalInitialType] = React.useState(null)
-  const [deleteConfirm, setDeleteConfirm] = React.useState(null)
+  const [expandedType, setExpandedType] = React.useState(null)
+
   const todayExercises = exercises.filter(e => e.date === selectedDate)
-  const weekDates = React.useMemo(() => getWeekDates(), [])
-  const today = todayKey()
-
-  // Long-press detection
-  const longPressTimer = React.useRef(null)
-  const didLongPress = React.useRef(false)
-
-  function startPress(type) {
-    didLongPress.current = false
-    longPressTimer.current = setTimeout(() => {
-      didLongPress.current = true
-      setModalInitialType(type)
-      setShowModal(true)
-    }, 500)
-  }
-  function cancelPress() {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current)
-  }
-  function endPress(type) {
-    cancelPress()
-    if (!didLongPress.current) {
-      onAdd(selectedDate, type, '', 30, 'moderate')
-    }
-  }
-
   const intensityLabel = k => INTENSITY_OPTS.find(o => o.key === k)?.label || k
+
+  function subtitle(entries) {
+    if (entries.length === 0) return null
+    if (entries.length === 1) return `${entries[0].durationMin} 分鐘 · ${intensityLabel(entries[0].intensity)}`
+    const total = entries.reduce((sum, e) => sum + (e.durationMin || 0), 0)
+    return `${entries.length} 筆 · 共 ${total} 分鐘`
+  }
 
   return (
     <>
@@ -632,127 +621,92 @@ function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDele
           <button onClick={() => setShowTypeModal(true)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
             fontSize: 12, color: 'var(--text-muted)', padding: 0,
-          }}>管理類型</button>
+          }}>管理項目</button>
         }>
 
-        {/* Quick-tap type buttons */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 8 }}>
-          {exerciseTypes.map(type => {
-            const countToday = todayExercises.filter(e => e.type === type).length
-            return (
-              <button
-                key={type}
-                onMouseDown={() => startPress(type)}
-                onMouseUp={() => endPress(type)}
-                onMouseLeave={cancelPress}
-                onTouchStart={e => { e.preventDefault(); startPress(type) }}
-                onTouchEnd={e => { e.preventDefault(); endPress(type) }}
-                onTouchCancel={cancelPress}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '7px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
-                  border: '0.5px solid',
-                  borderColor: countToday > 0 ? '#A8C8A0' : 'var(--border-soft)',
-                  background: countToday > 0 ? '#EEF4EC' : 'var(--bg-surface)',
-                  color: countToday > 0 ? '#5A7A52' : 'var(--text-secondary)',
-                  fontWeight: countToday > 0 ? 500 : 400,
-                  userSelect: 'none', WebkitUserSelect: 'none',
-                }}>
-                {countToday > 0 && <span style={{ fontSize: 10 }}>✓</span>}
-                {type}
-              </button>
-            )
-          })}
-          <button
-            onClick={() => { setModalInitialType(null); setShowModal(true) }}
-            style={{
-              padding: '7px 12px', borderRadius: 20,
-              border: '0.5px dashed var(--border-soft)', background: 'transparent',
-              color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
-            }}>＋</button>
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>點選快速記錄・長按填詳情</div>
+        {exerciseTypes.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '10px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+            點右上角「管理項目」加入運動類型
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {exerciseTypes.map(type => {
+              const entries = todayExercises.filter(e => e.type === type)
+              const hasDone = entries.length > 0
+              const isExpanded = expandedType === type
+              const sub = subtitle(entries)
 
-        {/* Week grid */}
-        <div style={{ marginBottom: 2 }}>
-          {/* Day header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', marginBottom: 3 }}>
-            <div />
-            {weekDates.map((d, i) => {
-              const isToday = d === today
-              const isSel = d === selectedDate
               return (
-                <div key={d} style={{ textAlign: 'center', lineHeight: 1.3 }}>
-                  <div style={{ fontSize: 10, color: isToday ? '#5A7A52' : 'var(--text-muted)', fontWeight: isToday ? 600 : 400 }}>
-                    {WEEK_DAY_LABELS[i]}
+                <div key={type}>
+                  {/* Main row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 2px' }}>
+                    {/* Circle */}
+                    <button
+                      onClick={() => hasDone && setExpandedType(isExpanded ? null : type)}
+                      style={{
+                        width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                        border: `1.5px solid ${hasDone ? '#7AAA6A' : '#D8CCBF'}`,
+                        background: hasDone ? '#7AAA6A' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 17, color: hasDone ? '#fff' : 'transparent',
+                        cursor: hasDone ? 'pointer' : 'default',
+                        transition: 'all 0.2s',
+                      }}>✓</button>
+
+                    {/* Name + subtitle */}
+                    <div
+                      style={{ flex: 1, cursor: hasDone ? 'pointer' : 'default' }}
+                      onClick={() => hasDone && setExpandedType(isExpanded ? null : type)}>
+                      <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{type}</div>
+                      {sub && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{sub}</div>}
+                    </div>
+
+                    {/* ＋ button */}
+                    <button
+                      onClick={() => setActiveModal(type)}
+                      style={{
+                        width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                        border: '0.5px solid var(--border-soft)', background: 'var(--bg-surface)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 20, color: '#5A7A52', cursor: 'pointer', lineHeight: 1,
+                        paddingBottom: 1,
+                      }}>＋</button>
                   </div>
-                  <div style={{ fontSize: 9, color: isSel ? '#5A7A52' : 'var(--text-muted)', fontWeight: isSel ? 600 : 400 }}>
-                    {d.slice(8, 10)}
-                  </div>
+
+                  {/* Expanded entries */}
+                  {isExpanded && entries.length > 0 && (
+                    <div style={{ marginLeft: 48, marginBottom: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {entries.map(ex => (
+                        <div key={ex.id} style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          background: 'var(--bg-surface)', borderRadius: 8, padding: '6px 10px',
+                        }}>
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                            {ex.durationMin} 分鐘 · {intensityLabel(ex.intensity)}
+                          </span>
+                          <button onClick={() => onDelete(ex.id)} style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            fontSize: 17, color: '#C4B0A0', padding: '0 2px', lineHeight: 1,
+                          }}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
-          {/* Type rows */}
-          {exerciseTypes.map(type => (
-            <div key={type} style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', alignItems: 'center', marginBottom: 5 }}>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>
-                {type}
-              </div>
-              {weekDates.map(d => {
-                const hasLog = exercises.some(e => e.date === d && e.type === type)
-                const isSel = d === selectedDate
-                return (
-                  <div key={d} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 22 }}>
-                    <div style={{
-                      width: 13, height: 13, borderRadius: '50%',
-                      background: hasLog ? (isSel ? '#5A7A52' : '#A8C8A0') : 'transparent',
-                      border: `0.5px solid ${hasLog ? '#5A7A52' : '#D8CCBF'}`,
-                      transition: 'background 0.2s',
-                    }} />
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-
-        {/* Logged exercises for selected date */}
-        {todayExercises.length > 0 && (
-          <div style={{ borderTop: '0.5px solid var(--border-soft)', marginTop: 8, paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {todayExercises.map(ex => (
-              <div key={ex.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: 'var(--bg-surface)', borderRadius: 8, padding: '7px 10px',
-              }}>
-                <div>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{ex.type}</span>
-                  {ex.subType && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 5 }}>{ex.subType}</span>}
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 5 }}>{ex.durationMin}min · {intensityLabel(ex.intensity)}</span>
-                </div>
-                {deleteConfirm === ex.id ? (
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => { onDelete(ex.id); setDeleteConfirm(null) }} style={{ fontSize: 11, color: '#C07070', background: 'none', border: 'none', cursor: 'pointer' }}>確認</button>
-                    <button onClick={() => setDeleteConfirm(null)} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>取消</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setDeleteConfirm(ex.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)', padding: '0 4px' }}>×</button>
-                )}
-              </div>
-            ))}
-          </div>
         )}
       </SectionCard>
 
-      {showModal && (
+      {activeModal && (
         <ExerciseModal
-          exerciseTypes={exerciseTypes}
-          initialType={modalInitialType}
-          onSave={(type, subType, durationMin, intensity) => {
-            onAdd(selectedDate, type, subType, durationMin, intensity)
-            setShowModal(false)
+          typeName={activeModal}
+          onSave={(durationMin, intensity) => {
+            onAdd(selectedDate, activeModal, '', durationMin, intensity)
+            setActiveModal(null)
           }}
-          onClose={() => setShowModal(false)}
+          onClose={() => setActiveModal(null)}
         />
       )}
       {showTypeModal && (
