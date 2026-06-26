@@ -251,87 +251,148 @@ const TIMING_COLORS = {
   '睡前':     { bg: '#D0E4F4', text: '#1A4A7A' },
 }
 
-function SupplementItemEditor({ item, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) {
-  return (
-    <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '12px 12px 10px', marginBottom: 8 }}>
-      {/* Name row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <input
-          type="text" value={item.name}
-          onChange={e => onChange({ ...item, name: e.target.value })}
-          placeholder="品名…"
-          style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: '0.5px solid var(--border-soft)', background: 'var(--bg-card)', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: 'var(--text-primary)' }}
-        />
-        <button onClick={() => !isFirst && onMoveUp()} disabled={isFirst} style={{ background: 'none', border: 'none', cursor: isFirst ? 'default' : 'pointer', fontSize: 14, color: isFirst ? 'var(--border-soft)' : 'var(--text-muted)', padding: '2px 4px', lineHeight: 1 }}>↑</button>
-        <button onClick={() => !isLast && onMoveDown()} disabled={isLast} style={{ background: 'none', border: 'none', cursor: isLast ? 'default' : 'pointer', fontSize: 14, color: isLast ? 'var(--border-soft)' : 'var(--text-muted)', padding: '2px 4px', lineHeight: 1 }}>↓</button>
-        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#C0706A', padding: '2px 4px', lineHeight: 1 }}>×</button>
-      </div>
-      {/* Amount */}
-      <input
-        type="text" value={item.amount}
-        onChange={e => onChange({ ...item, amount: e.target.value })}
-        placeholder="份量備忘（選填，例：2顆）"
-        style={{ width: '100%', padding: '5px 10px', borderRadius: 8, border: '0.5px solid var(--border-soft)', background: 'var(--bg-card)', fontSize: 12, outline: 'none', fontFamily: 'inherit', color: 'var(--text-secondary)', marginBottom: 8, boxSizing: 'border-box' }}
-      />
-      {/* Timings */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-        {SUPP_TIMINGS.map(t => {
-          const active = (item.timings || []).includes(t)
-          return (
-            <button key={t} onClick={() => {
-              const timings = active ? (item.timings || []).filter(x => x !== t) : [...(item.timings || []), t]
-              onChange({ ...item, timings })
-            }} style={{
-              padding: '4px 10px', borderRadius: 12, fontSize: 11, cursor: 'pointer',
-              border: `0.5px solid ${active ? '#AFA9EC' : 'var(--border-soft)'}`,
-              background: active ? '#EEEDFE' : 'transparent',
-              color: active ? '#534AB7' : 'var(--text-muted)',
-              fontWeight: active ? 500 : 400,
-            }}>{t}</button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 function SupplementEditModal({ items, onSave, onClose }) {
   const [list, setList] = React.useState(items.map(i => ({ ...i })))
+  const [expandedIdx, setExpandedIdx] = React.useState(null)
   const [newName, setNewName] = React.useState('')
 
-  function addItem() {
-    const n = newName.trim()
-    if (n) { setList(l => [...l, { name: n, amount: '', timings: [] }]); setNewName('') }
+  // ── drag-to-reorder ──────────────────────────────────────────
+  const [dragIdx, setDragIdx] = React.useState(null)
+  const [overIdx, setOverIdx] = React.useState(null)
+  const listRef = React.useRef(null)
+  const dragStateRef = React.useRef({ dragIdx: null, overIdx: null })
+  const listRef2 = React.useRef(list)
+  React.useEffect(() => { listRef2.current = list }, [list])
+
+  function getIdxFromY(clientY) {
+    const children = Array.from(listRef.current?.children || [])
+    for (let i = 0; i < children.length; i++) {
+      if (clientY < children[i].getBoundingClientRect().bottom) return i
+    }
+    return Math.max(0, children.length - 1)
   }
 
+  function handleDragStart(e, index) {
+    e.preventDefault(); e.stopPropagation()
+    dragStateRef.current = { dragIdx: index, overIdx: index }
+    setDragIdx(index); setOverIdx(index); setExpandedIdx(null)
+  }
+
+  React.useEffect(() => {
+    function onMove(e) {
+      if (dragStateRef.current.dragIdx === null) return
+      e.preventDefault()
+      const idx = getIdxFromY(e.touches[0].clientY)
+      dragStateRef.current.overIdx = idx; setOverIdx(idx)
+    }
+    function onEnd() {
+      const { dragIdx: di, overIdx: oi } = dragStateRef.current
+      if (di !== null && oi !== null && di !== oi) {
+        const next = [...listRef2.current]
+        const [moved] = next.splice(di, 1); next.splice(oi, 0, moved)
+        setList(next)
+      }
+      dragStateRef.current = { dragIdx: null, overIdx: null }
+      setDragIdx(null); setOverIdx(null)
+    }
+    document.addEventListener('touchmove', onMove, { passive: false })
+    document.addEventListener('touchend', onEnd)
+    return () => { document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onEnd) }
+  }, [])
+
+  // ── item helpers ─────────────────────────────────────────────
   function updateItem(i, val) { setList(l => l.map((x, j) => j === i ? val : x)) }
-  function deleteItem(i) { setList(l => l.filter((_, j) => j !== i)) }
-  function moveUp(i) { if (i === 0) return; setList(l => { const a = [...l]; [a[i-1], a[i]] = [a[i], a[i-1]]; return a }) }
-  function moveDown(i) { setList(l => { if (i >= l.length - 1) return l; const a = [...l]; [a[i], a[i+1]] = [a[i+1], a[i]]; return a }) }
+  function deleteItem(i) { setList(l => l.filter((_, j) => j !== i)); if (expandedIdx === i) setExpandedIdx(null) }
+  function toggleTiming(i, t) {
+    setList(l => l.map((x, j) => {
+      if (j !== i) return x
+      const timings = (x.timings || []).includes(t) ? x.timings.filter(k => k !== t) : [...(x.timings || []), t]
+      return { ...x, timings }
+    }))
+  }
+  function addItem() {
+    const n = newName.trim()
+    if (!n) return
+    setList(l => { const next = [...l, { name: n, amount: '', timings: [] }]; setExpandedIdx(next.length - 1); return next })
+    setNewName('')
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '85vh', overflowY: 'auto' }}>
         <div className="modal-handle" />
-        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>管理營養品</div>
-        {list.map((item, i) => (
-          <SupplementItemEditor key={i}
-            item={item}
-            onChange={val => updateItem(i, val)}
-            onDelete={() => deleteItem(i)}
-            onMoveUp={() => moveUp(i)}
-            onMoveDown={() => moveDown(i)}
-            isFirst={i === 0}
-            isLast={i === list.length - 1}
-          />
-        ))}
-        <div style={{ display: 'flex', gap: 8, margin: '12px 0 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>管理營養品</div>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>⠿ 長按拖曳排序</span>
+        </div>
+
+        <div ref={listRef}>
+          {list.map((item, i) => {
+            const isExp = expandedIdx === i
+            const isDrag = dragIdx === i
+            const isOver = overIdx === i && dragIdx !== null && dragIdx !== i
+            return (
+              <div key={i} style={{
+                opacity: isDrag ? 0.4 : 1, transition: 'opacity 0.15s',
+                borderTop: isOver && dragIdx > i ? '2px solid #AFA9EC' : 'none',
+                borderBottom: isOver && dragIdx < i ? '2px solid #AFA9EC' : 'none',
+                marginBottom: 5,
+              }}>
+                {/* Row */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px',
+                  background: isExp ? '#F5F3FE' : 'var(--bg-surface)',
+                  border: `0.5px solid ${isExp ? '#AFA9EC' : 'var(--border-soft)'}`,
+                  borderRadius: isExp ? '10px 10px 0 0' : 10,
+                }}>
+                  <div onTouchStart={e => handleDragStart(e, i)} style={{ fontSize: 16, color: 'var(--text-muted)', padding: '2px 4px', userSelect: 'none', touchAction: 'none', flexShrink: 0, cursor: 'grab' }}>⠿</div>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', cursor: 'pointer' }} onClick={() => setExpandedIdx(isExp ? null : i)}>
+                    {/* 時機 badges 在前 */}
+                    {(item.timings || []).map(t => {
+                      const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
+                      return <span key={t} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 5, background: c.bg, color: c.text, fontWeight: 500, whiteSpace: 'nowrap' }}>{t}</span>
+                    })}
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{item.name}</span>
+                    {item.amount ? <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {item.amount}</span> : null}
+                  </div>
+                  <button onClick={e => { e.stopPropagation(); deleteItem(i) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#C07070', padding: '0 2px', flexShrink: 0 }}>×</button>
+                </div>
+
+                {/* Expanded panel */}
+                {isExp && (
+                  <div style={{ padding: '10px 12px 12px', background: '#F5F3FE', border: '0.5px solid #AFA9EC', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>份量備忘</div>
+                    <input type="text" value={item.amount} onChange={e => updateItem(i, { ...item, amount: e.target.value })} placeholder="例：2顆、1匙" style={{ width: '100%', marginBottom: 10, fontSize: 12 }} />
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>食用時機</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      {SUPP_TIMINGS.map(t => {
+                        const active = (item.timings || []).includes(t)
+                        const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
+                        return (
+                          <button key={t} onClick={() => toggleTiming(i, t)} style={{
+                            padding: '4px 10px', borderRadius: 12, fontSize: 11, cursor: 'pointer',
+                            border: `0.5px solid ${active ? c.text + '60' : 'var(--border-soft)'}`,
+                            background: active ? c.bg : 'transparent',
+                            color: active ? c.text : 'var(--text-muted)',
+                            fontWeight: active ? 500 : 400,
+                          }}>{t}</button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, margin: '10px 0 16px' }}>
           <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addItem()}
             placeholder="新增品項…"
-            style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '0.5px solid var(--border-soft)', background: 'var(--bg-surface)', fontSize: 14, outline: 'none', fontFamily: 'inherit', color: 'var(--text-primary)' }}
+            style={{ flex: 1 }}
           />
-          <button onClick={addItem} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: '#EEEDFE', color: '#534AB7', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}>新增</button>
+          <button onClick={addItem} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#EEEDFE', color: '#534AB7', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>新增</button>
         </div>
         <button onClick={() => onSave(list)} className="btn-primary">儲存</button>
       </div>
