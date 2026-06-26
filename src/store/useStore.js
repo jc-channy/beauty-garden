@@ -172,7 +172,8 @@ const INITIAL_STATE = {
     trackerAmOrder: [],
     trackerPmOrder: [],
     // Body / water / supplement settings
-    supplementNames: [],
+    supplementNames: [],      // legacy
+    supplementItems: [],      // [{ name, amount, timings[] }]
     waterGoalMl: 2000,
     waterQuickAmounts: [200, 350, 500],
     bodyGoalWeight: null,
@@ -249,11 +250,21 @@ function groupToRow(g, userId) {
 
 function rowToSettings(row) {
   if (!row) return INITIAL_STATE.settings
+  // supplement_items (new) takes priority; fall back to supplement_names (legacy)
+  const rawItems = row.supplement_items
+  let supplementItems = []
+  if (Array.isArray(rawItems) && rawItems.length > 0) {
+    supplementItems = rawItems
+  } else {
+    // migrate legacy string array → item objects
+    supplementItems = (row.supplement_names || []).map(name => ({ name, amount: '', timings: [] }))
+  }
   return {
     userName: row.user_name || '',
     trackerAmOrder: row.tracker_am_order || [],
     trackerPmOrder: row.tracker_pm_order || [],
-    supplementNames: row.supplement_names || [],
+    supplementNames: (supplementItems).map(i => i.name), // keep for compat
+    supplementItems,
     waterGoalMl: row.water_goal_ml || 2000,
     waterQuickAmounts: row.water_quick_amounts || [200, 350, 500],
     bodyGoalWeight: row.body_goal_weight ?? null,
@@ -595,6 +606,22 @@ export function useStore(userId) {
   }, [userId])
 
   // ── Water Logs ──────────────────────────────────────────────
+  const resetWater = useCallback(async (date) => {
+    setState(prev => ({ ...prev, waterLogs: { ...prev.waterLogs, [date]: 0 } }))
+    mutating.current++
+    try {
+      const { error } = await supabase.from('water_logs').upsert(
+        { user_id: userId, log_date: date, total_ml: 0, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,log_date' }
+      )
+      if (error) throw error
+    } catch (e) {
+      console.error('resetWater failed:', e)
+    } finally {
+      mutating.current--
+    }
+  }, [userId])
+
   const addWater = useCallback(async (ml, date) => {
     const currentMl = stateRef.current.waterLogs[date] || 0
     const newMl = Math.max(0, currentMl + ml)
@@ -709,6 +736,15 @@ export function useStore(userId) {
     )
   }, [userId])
 
+  const updateSupplementItems = useCallback(async (items) => {
+    const names = items.map(i => i.name)
+    setState(prev => ({ ...prev, settings: { ...prev.settings, supplementItems: items, supplementNames: names } }))
+    await supabase.from('user_settings').upsert(
+      { user_id: userId, supplement_items: items, supplement_names: names },
+      { onConflict: 'user_id' }
+    )
+  }, [userId])
+
   const updateBodyGoals = useCallback(async (patch) => {
     setState(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }))
     const row = { user_id: userId }
@@ -738,10 +774,12 @@ export function useStore(userId) {
     updateTrackerOrder,
     upsertBodyLog,
     addWater,
+    resetWater,
     addExercise,
     deleteExercise,
     toggleSupplement,
     updateSupplementNames,
+    updateSupplementItems,
     updateBodyGoals,
   }
 }

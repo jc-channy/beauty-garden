@@ -170,7 +170,7 @@ function BodySection({ bodyLog, selectedDate, onSave }) {
 }
 
 // ── Water section ─────────────────────────────────────────────
-function WaterSection({ totalMl, goalMl, quickAmounts, onAdd }) {
+function WaterSection({ totalMl, goalMl, quickAmounts, onAdd, onReset }) {
   const [customMode, setCustomMode] = React.useState(false)
   const [customVal, setCustomVal] = React.useState('')
   const pct = Math.min(100, goalMl > 0 ? Math.round((totalMl / goalMl) * 100) : 0)
@@ -228,41 +228,102 @@ function WaterSection({ totalMl, goalMl, quickAmounts, onAdd }) {
             color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
           }}>−200</button>
         )}
+        {totalMl > 0 && onReset && (
+          <button onClick={onReset} style={{
+            padding: '6px 10px', borderRadius: 10,
+            border: '0.5px solid #F4C3C3', background: 'transparent',
+            color: '#C0706A', fontSize: 12, cursor: 'pointer',
+          }}>重置</button>
+        )}
       </div>
     </SectionCard>
   )
 }
 
 // ── Supplement section ────────────────────────────────────────
-function SupplementEditModal({ names, onSave, onClose }) {
-  const [list, setList] = React.useState([...names])
+const SUPP_TIMINGS = ['早上空腹', '早餐後', '午餐後', '晚餐後', '睡前']
+
+function SupplementItemEditor({ item, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) {
+  return (
+    <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '12px 12px 10px', marginBottom: 8 }}>
+      {/* Name row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <input
+          type="text" value={item.name}
+          onChange={e => onChange({ ...item, name: e.target.value })}
+          placeholder="品名…"
+          style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: '0.5px solid var(--border-soft)', background: 'var(--bg-card)', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: 'var(--text-primary)' }}
+        />
+        <button onClick={() => !isFirst && onMoveUp()} disabled={isFirst} style={{ background: 'none', border: 'none', cursor: isFirst ? 'default' : 'pointer', fontSize: 14, color: isFirst ? 'var(--border-soft)' : 'var(--text-muted)', padding: '2px 4px', lineHeight: 1 }}>↑</button>
+        <button onClick={() => !isLast && onMoveDown()} disabled={isLast} style={{ background: 'none', border: 'none', cursor: isLast ? 'default' : 'pointer', fontSize: 14, color: isLast ? 'var(--border-soft)' : 'var(--text-muted)', padding: '2px 4px', lineHeight: 1 }}>↓</button>
+        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#C0706A', padding: '2px 4px', lineHeight: 1 }}>×</button>
+      </div>
+      {/* Amount */}
+      <input
+        type="text" value={item.amount}
+        onChange={e => onChange({ ...item, amount: e.target.value })}
+        placeholder="份量備忘（選填，例：2顆）"
+        style={{ width: '100%', padding: '5px 10px', borderRadius: 8, border: '0.5px solid var(--border-soft)', background: 'var(--bg-card)', fontSize: 12, outline: 'none', fontFamily: 'inherit', color: 'var(--text-secondary)', marginBottom: 8, boxSizing: 'border-box' }}
+      />
+      {/* Timings */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {SUPP_TIMINGS.map(t => {
+          const active = (item.timings || []).includes(t)
+          return (
+            <button key={t} onClick={() => {
+              const timings = active ? (item.timings || []).filter(x => x !== t) : [...(item.timings || []), t]
+              onChange({ ...item, timings })
+            }} style={{
+              padding: '4px 10px', borderRadius: 12, fontSize: 11, cursor: 'pointer',
+              border: `0.5px solid ${active ? '#AFA9EC' : 'var(--border-soft)'}`,
+              background: active ? '#EEEDFE' : 'transparent',
+              color: active ? '#534AB7' : 'var(--text-muted)',
+              fontWeight: active ? 500 : 400,
+            }}>{t}</button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function SupplementEditModal({ items, onSave, onClose }) {
+  const [list, setList] = React.useState(items.map(i => ({ ...i })))
   const [newName, setNewName] = React.useState('')
 
-  function addName() {
+  function addItem() {
     const n = newName.trim()
-    if (n && !list.includes(n)) { setList(l => [...l, n]); setNewName('') }
+    if (n) { setList(l => [...l, { name: n, amount: '', timings: [] }]); setNewName('') }
   }
+
+  function updateItem(i, val) { setList(l => l.map((x, j) => j === i ? val : x)) }
+  function deleteItem(i) { setList(l => l.filter((_, j) => j !== i)) }
+  function moveUp(i) { if (i === 0) return; setList(l => { const a = [...l]; [a[i-1], a[i]] = [a[i], a[i-1]]; return a }) }
+  function moveDown(i) { setList(l => { if (i >= l.length - 1) return l; const a = [...l]; [a[i], a[i+1]] = [a[i+1], a[i]]; return a }) }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '85vh', overflowY: 'auto' }}>
         <div className="modal-handle" />
-        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 16 }}>管理營養品</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          {list.map((name, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-surface)', borderRadius: 10 }}>
-              <span style={{ fontSize: 14, color: 'var(--text-primary)' }}>{name}</span>
-              <button onClick={() => setList(l => l.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)', padding: '0 4px' }}>×</button>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>管理營養品</div>
+        {list.map((item, i) => (
+          <SupplementItemEditor key={i}
+            item={item}
+            onChange={val => updateItem(i, val)}
+            onDelete={() => deleteItem(i)}
+            onMoveUp={() => moveUp(i)}
+            onMoveDown={() => moveDown(i)}
+            isFirst={i === 0}
+            isLast={i === list.length - 1}
+          />
+        ))}
+        <div style={{ display: 'flex', gap: 8, margin: '12px 0 18px' }}>
           <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addName()}
+            onKeyDown={e => e.key === 'Enter' && addItem()}
             placeholder="新增品項…"
             style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '0.5px solid var(--border-soft)', background: 'var(--bg-surface)', fontSize: 14, outline: 'none', fontFamily: 'inherit', color: 'var(--text-primary)' }}
           />
-          <button onClick={addName} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: '#EEEDFE', color: '#534AB7', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}>新增</button>
+          <button onClick={addItem} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: '#EEEDFE', color: '#534AB7', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}>新增</button>
         </div>
         <button onClick={() => onSave(list)} className="btn-primary">儲存</button>
       </div>
@@ -270,38 +331,44 @@ function SupplementEditModal({ names, onSave, onClose }) {
   )
 }
 
-function SupplementSection({ names, checked, selectedDate, onToggle, onEditNames }) {
+function SupplementSection({ items, checked, selectedDate, onToggle, onEditItems }) {
   const [showEdit, setShowEdit] = React.useState(false)
-  const allDone = names.length > 0 && checked.length >= names.length
+  const names = items.map(i => i.name)
+  const allDone = items.length > 0 && checked.length >= items.length
 
   return (
     <>
       <SectionCard tag="營養品" tagBg="#EEEDFE" tagText="#3C3489"
         headerRight={
           <button onClick={() => setShowEdit(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)', padding: 0 }}>
-            {names.length === 0 ? '+ 設定品項' : '編輯'}
+            {items.length === 0 ? '+ 設定品項' : '編輯'}
           </button>
         }>
-        {names.length === 0 ? (
+        {items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '10px 0', color: 'var(--text-muted)', fontSize: 13 }}>
             點右上角「設定品項」加入你的日常營養品
           </div>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {names.map(name => {
-              const done = checked.includes(name)
+            {items.map(item => {
+              const done = checked.includes(item.name)
+              const timingLabel = (item.timings || []).join('・')
               return (
-                <button key={name} onClick={() => onToggle(name, selectedDate)} style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '7px 14px', borderRadius: 20,
+                <button key={item.name} onClick={() => onToggle(item.name, selectedDate)} style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
+                  padding: '7px 14px', borderRadius: 16,
                   background: done ? '#EEEDFE' : 'var(--bg-surface)',
                   border: `0.5px solid ${done ? '#AFA9EC' : 'var(--border-soft)'}`,
-                  color: done ? '#534AB7' : 'var(--text-secondary)',
-                  fontSize: 13, cursor: 'pointer', fontWeight: done ? 500 : 400,
-                  transition: 'all 0.2s',
+                  cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left',
                 }}>
-                  {done && <span style={{ width: 14, height: 14, borderRadius: '50%', background: '#AFA9EC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#fff', flexShrink: 0 }}>✓</span>}
-                  {name}
+                  {timingLabel ? (
+                    <span style={{ fontSize: 10, color: done ? '#7A72C8' : 'var(--text-muted)', lineHeight: 1.2 }}>{timingLabel}</span>
+                  ) : null}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {done && <span style={{ width: 13, height: 13, borderRadius: '50%', background: '#AFA9EC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', flexShrink: 0 }}>✓</span>}
+                    <span style={{ fontSize: 13, color: done ? '#534AB7' : 'var(--text-secondary)', fontWeight: done ? 500 : 400 }}>{item.name}</span>
+                    {item.amount ? <span style={{ fontSize: 11, color: done ? '#9A93D8' : 'var(--text-muted)' }}>· {item.amount}</span> : null}
+                  </span>
                 </button>
               )
             })}
@@ -311,8 +378,8 @@ function SupplementSection({ names, checked, selectedDate, onToggle, onEditNames
       </SectionCard>
       {showEdit && (
         <SupplementEditModal
-          names={names}
-          onSave={newNames => { onEditNames(newNames); setShowEdit(false) }}
+          items={items}
+          onSave={newItems => { onEditItems(newItems); setShowEdit(false) }}
           onClose={() => setShowEdit(false)}
         />
       )}
@@ -622,7 +689,7 @@ function CompletionCard({ done, total, streak }) {
 
 // ── Main page ─────────────────────────────────────────────────
 export default function HomePage({ store, onManageGroups }) {
-  const { state, toggleProductUseDate, groupDays, upsertBodyLog, addWater, addExercise, deleteExercise, toggleSupplement, updateSupplementNames } = store
+  const { state, toggleProductUseDate, groupDays, upsertBodyLog, addWater, resetWater, addExercise, deleteExercise, toggleSupplement, updateSupplementItems } = store
   const today = todayKey()
   const { products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins } = state
 
@@ -652,7 +719,8 @@ export default function HomePage({ store, onManageGroups }) {
   const bodyLog = bodyLogs[selectedDate] || null
   const waterToday = waterLogs[selectedDate] || 0
   const waterGoal = settings.waterGoalMl || 2000
-  const supplementNames = settings.supplementNames || []
+  const supplementItems = settings.supplementItems || []
+  const supplementNames = supplementItems.map(i => i.name)
   const supplementChecked = supplementCheckins[selectedDate] || []
   const todayExercises = exercises.filter(e => e.date === selectedDate)
 
@@ -763,10 +831,10 @@ export default function HomePage({ store, onManageGroups }) {
       )}
 
       {/* 3. 飲水 */}
-      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} onAdd={(ml) => addWater(ml, selectedDate)} />
+      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} onAdd={(ml) => addWater(ml, selectedDate)} onReset={() => resetWater(selectedDate)} />
 
       {/* 4. 營養品 */}
-      <SupplementSection names={supplementNames} checked={supplementChecked} selectedDate={selectedDate} onToggle={toggleSupplement} onEditNames={updateSupplementNames} />
+      <SupplementSection items={supplementItems} checked={supplementChecked} selectedDate={selectedDate} onToggle={toggleSupplement} onEditItems={updateSupplementItems} />
 
       {/* 5. 運動 */}
       <ExerciseSection exercises={exercises} selectedDate={selectedDate} onAdd={addExercise} onDelete={deleteExercise} />

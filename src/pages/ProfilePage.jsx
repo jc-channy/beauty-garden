@@ -307,18 +307,31 @@ function Section({ title, children }) {
 }
 
 export default function ProfilePage({ store }) {
-  const { state, updateSettings } = store
+  const { state, updateSettings, updateBodyGoals } = store
   const { settings, products, waterLogs, bodyLogs } = state
 
   const [userName, setUserName] = useState(settings.userName)
   const [saved, setSaved] = useState(false)
 
+  // Goals state
+  const [goalWeight, setGoalWeight] = useState(settings.bodyGoalWeight ?? '')
+  const [goalFat, setGoalFat] = useState(settings.bodyGoalFat ?? '')
+  const [goalWater, setGoalWater] = useState(settings.waterGoalMl ?? 2000)
+  const [quickAmts, setQuickAmts] = useState((settings.waterQuickAmounts || [200, 350, 500]).join(', '))
+
   React.useEffect(() => {
     setUserName(settings.userName)
-  }, [settings.userName])
+    setGoalWeight(settings.bodyGoalWeight ?? '')
+    setGoalFat(settings.bodyGoalFat ?? '')
+    setGoalWater(settings.waterGoalMl ?? 2000)
+    setQuickAmts((settings.waterQuickAmounts || [200, 350, 500]).join(', '))
+  }, [settings.userName, settings.bodyGoalWeight, settings.bodyGoalFat, settings.waterGoalMl, settings.waterQuickAmounts])
 
   function handleSave() {
-    updateSettings({ userName })
+    // Parse water quick amounts
+    const parsedAmounts = quickAmts.split(/[,，\s]+/).map(s => parseInt(s.trim())).filter(n => n > 0)
+    updateSettings({ userName, waterGoalMl: parseInt(goalWater) || 2000, waterQuickAmounts: parsedAmounts.length ? parsedAmounts : [200, 350, 500] })
+    updateBodyGoals({ bodyGoalWeight: goalWeight !== '' ? parseFloat(goalWeight) : null, bodyGoalFat: goalFat !== '' ? parseFloat(goalFat) : null })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -351,6 +364,32 @@ export default function ProfilePage({ store }) {
       <Section title="體態趨勢">
         <div className="card" style={{ padding: '14px' }}>
           <BodyTrendChart bodyLogs={bodyLogs || {}} />
+        </div>
+      </Section>
+
+      {/* Goals settings */}
+      <Section title="目標設定">
+        <div className="card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Water goal */}
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>每日飲水目標 (ml)</div>
+            <input type="number" inputMode="numeric" value={goalWater} onChange={e => setGoalWater(e.target.value)} placeholder="2000" />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>快速加水選項 (ml，逗號分隔)</div>
+            <input type="text" inputMode="numeric" value={quickAmts} onChange={e => setQuickAmts(e.target.value)} placeholder="200, 350, 500" />
+          </div>
+          {/* Body goals */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>目標體重 (kg)</div>
+              <input type="number" inputMode="decimal" value={goalWeight} onChange={e => setGoalWeight(e.target.value)} placeholder="—" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>目標體脂 (%)</div>
+              <input type="number" inputMode="decimal" value={goalFat} onChange={e => setGoalFat(e.target.value)} placeholder="—" />
+            </div>
+          </div>
         </div>
       </Section>
 
