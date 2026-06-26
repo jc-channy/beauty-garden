@@ -431,29 +431,35 @@ function SupplementSection({ items, checked, selectedDate, onToggle, onEditItems
               const done = checked.includes(item.name)
               const timings = item.timings || []
               return (
-                <button key={item.name} onClick={() => onToggle(item.name, selectedDate)} style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4,
-                  padding: '7px 12px', borderRadius: 16,
-                  background: done ? '#EEEDFE' : 'var(--bg-surface)',
-                  border: `0.5px solid ${done ? '#AFA9EC' : 'var(--border-soft)'}`,
-                  cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left',
-                }}>
-                  {timings.length > 0 && (
-                    <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                      {timings.map(t => {
-                        const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
-                        return (
-                          <span key={t} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 6, background: done ? c.bg + 'BB' : c.bg, color: c.text, fontWeight: 500, lineHeight: 1.5 }}>{t}</span>
-                        )
-                      })}
-                    </div>
-                  )}
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {done && <span style={{ width: 13, height: 13, borderRadius: '50%', background: '#AFA9EC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', flexShrink: 0 }}>✓</span>}
-                    <span style={{ fontSize: 14, color: done ? '#534AB7' : 'var(--text-secondary)', fontWeight: done ? 500 : 400 }}>{item.name}</span>
-                    {item.amount ? <span style={{ fontSize: 11, color: done ? '#9A93D8' : 'var(--text-muted)' }}>· {item.amount}</span> : null}
-                  </span>
-                </button>
+                {(() => {
+                  const firstTiming = timings[0]
+                  const tc = (firstTiming && TIMING_COLORS[firstTiming]) || { bg: '#EEEDFE', text: '#534AB7' }
+                  return (
+                    <button key={item.name} onClick={() => onToggle(item.name, selectedDate)} style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4,
+                      padding: '7px 12px', borderRadius: 16,
+                      background: done ? tc.bg : 'var(--bg-surface)',
+                      border: `0.5px solid ${done ? tc.text + '50' : 'var(--border-soft)'}`,
+                      cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left',
+                    }}>
+                      {timings.length > 0 && (
+                        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          {timings.map(t => {
+                            const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
+                            return (
+                              <span key={t} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, lineHeight: 1.5 }}>{t}</span>
+                            )
+                          })}
+                        </div>
+                      )}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        {done && <span style={{ width: 13, height: 13, borderRadius: '50%', background: tc.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', flexShrink: 0 }}>✓</span>}
+                        <span style={{ fontSize: 14, color: done ? tc.text : 'var(--text-secondary)', fontWeight: done ? 500 : 400 }}>{item.name}</span>
+                        {item.amount ? <span style={{ fontSize: 11, color: done ? tc.text + 'AA' : 'var(--text-muted)' }}>· {item.amount}</span> : null}
+                      </span>
+                    </button>
+                  )
+                })()}
               )
             })}
             {allDone && <span style={{ fontSize: 11, color: '#534AB7', alignSelf: 'center', marginLeft: 2 }}>全打了 ✦</span>}
@@ -611,25 +617,18 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
     if (!touchRef.current) return
     const dx = e.changedTouches[0].clientX - touchRef.current.startX
     touchRef.current.handled = true; setSwipeX(0)
-    if (dx > 44) { if (!usedToday) onToggle() }
-    else if (dx < -44) { if (usedToday) onToggle() }
+    if (dx > 80) { onToggle() }
   }
   function handleClick() { if (touchRef.current?.handled) touchRef.current = null }
 
-  const clampedX = Math.max(-60, Math.min(60, swipeX))
+  const clampedX = Math.max(0, Math.min(90, swipeX))
   const swipingRight = clampedX > 10
-  const swipingLeft  = clampedX < -10
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 10, marginBottom: 3 }}>
       {swipingRight && (
-        <div style={{ position: 'absolute', inset: 0, background: '#EEF4EC', borderRadius: 10, display: 'flex', alignItems: 'center', paddingLeft: 12 }}>
-          <span style={{ fontSize: 14, color: '#5A7A52' }}>✓</span>
-        </div>
-      )}
-      {swipingLeft && (
-        <div style={{ position: 'absolute', inset: 0, background: '#FFF0F0', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 12 }}>
-          <span style={{ fontSize: 13, color: '#C07070' }}>✕</span>
+        <div style={{ position: 'absolute', inset: 0, background: usedToday ? '#FFF0F0' : '#EEF4EC', borderRadius: 10, display: 'flex', alignItems: 'center', paddingLeft: 12 }}>
+          <span style={{ fontSize: 14, color: usedToday ? '#C07070' : '#5A7A52' }}>{usedToday ? '✕' : '✓'}</span>
         </div>
       )}
       <div
@@ -689,7 +688,7 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
   )
 }
 
-function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggle, noGroupMsg }) {
+function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggle, noGroupMsg, groupName, onManageGroups }) {
   const hour = new Date().getHours()
   const [tab, setTab] = React.useState(hour >= 12 ? 'pm' : 'am')
   const amDone = amProducts.filter(p => isUsedOnDate(p.usageLog, selectedDate, 'am')).length
@@ -707,9 +706,13 @@ function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggl
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: '#EFD7D7', color: '#9A6060' }}>保養</span>
+          {groupName && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{groupName}</span>}
           {allDone && <span style={{ fontSize: 11, color: '#5A8A50', background: '#EEF4EC', borderRadius: 6, padding: '1px 6px' }}>全完成 ✓</span>}
         </div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{totalDone}/{total}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{totalDone}/{total}</span>
+          {onManageGroups && <button onClick={onManageGroups} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)', padding: 0 }}>管理</button>}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -895,36 +898,14 @@ export default function HomePage({ store, onManageGroups }) {
       {/* 2. 飲水 */}
       <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} onAdd={(ml) => addWater(ml, selectedDate)} onReset={() => resetWater(selectedDate)} />
 
-      {/* Group switcher (compact) */}
-      {groups.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', marginBottom: 8 }}>
-          {groups.map(g => {
-            const sel = g.id === effectiveGroupId
-            const isAuto = g.id === autoGroupId
-            return (
-              <button key={g.id} onClick={() => setSelectedGroupId(g.id)} style={{
-                flexShrink: 0, padding: '5px 12px', borderRadius: 16, border: '0.5px solid',
-                borderColor: sel ? '#A8C8A0' : 'var(--border-soft)',
-                background: sel ? '#EEF4EC' : 'var(--bg-card)',
-                color: sel ? '#5A7A52' : 'var(--text-muted)',
-                fontSize: 12, cursor: 'pointer', fontWeight: sel ? 500 : 400,
-                display: 'flex', alignItems: 'center', gap: 4,
-              }}>
-                {isAuto && !isPastDate && <span style={{ fontSize: 9, background: '#C8A87A', color: '#fff', borderRadius: 3, padding: '1px 4px' }}>今</span>}
-                {g.name}
-              </button>
-            )
-          })}
-          <button onClick={onManageGroups} style={{ flexShrink: 0, padding: '5px 10px', borderRadius: 16, background: 'var(--bg-surface)', border: '0.5px solid var(--border-soft)', cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)' }}>管理</button>
-        </div>
-      )}
-
       {/* 2. 保養（AM + PM 合一） */}
       {products.length > 0 ? (
         <SkincareCombinedSection
           amProducts={amProducts} pmProducts={pmProducts}
           selectedDate={selectedDate} onToggle={handleToggle}
           noGroupMsg={groups.length === 0 ? '請先建立保養組別' : '這個組別還沒有設定步驟'}
+          groupName={selectedGroup?.name || null}
+          onManageGroups={onManageGroups}
         />
       ) : (
         <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px dashed var(--border-soft)', padding: '16px 18px', marginBottom: 10, textAlign: 'center' }}>
