@@ -612,11 +612,6 @@ export default function AchievementsPage({ store }) {
     computeObservations({ waterLogs, bodyLogs, products, supplementCheckins, settings, exercises }),
     [waterLogs, bodyLogs, products, supplementCheckins, settings, exercises]
   )
-  const unlockedIds = useMemo(() =>
-    computeAchievements({ products, waterLogs, bodyLogs, exercises, settings }),
-    [products, waterLogs, bodyLogs, exercises, settings]
-  )
-
   const TRACKING_TABS = [
     { id: 'skincare', label: '保養' },
     { id: 'supplement', label: '保健品' },
@@ -628,7 +623,6 @@ export default function AchievementsPage({ store }) {
     <div className="page-scroll fade-in" style={{ paddingTop: 24 }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)' }}>成就</div>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>已解鎖 {unlockedIds.size} / {ACHIEVEMENT_DEFS.length} 個里程碑</div>
       </div>
 
       {/* 1. 本週觀察 */}
@@ -668,22 +662,6 @@ export default function AchievementsPage({ store }) {
           {trackingTab === 'exercise' && (
             <ExerciseGrid exercises={exercises || []} exerciseTypes={settings.exerciseTypes || []} onUpdateTypes={updateExerciseTypes} />
           )}
-        </div>
-      </Section>
-
-      {/* 4. 里程碑 (moved to bottom) */}
-      <Section title="里程碑">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {ACHIEVEMENT_DEFS.map(def => {
-            const unlocked = unlockedIds.has(def.id)
-            return (
-              <div key={def.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '14px 8px', borderRadius: 16, background: unlocked ? '#FDF8F2' : 'var(--bg-surface)', border: `0.5px solid ${unlocked ? '#E8D4B8' : 'var(--border-soft)'}`, opacity: unlocked ? 1 : 0.45, flex: '1 1 calc(33% - 8px)', minWidth: 90, maxWidth: 120 }}>
-                <span style={{ fontSize: 28, filter: unlocked ? 'none' : 'grayscale(1)' }}>{def.icon}</span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: unlocked ? 'var(--text-primary)' : 'var(--text-muted)', textAlign: 'center' }}>{def.label}</span>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.4 }}>{def.desc}</span>
-              </div>
-            )
-          })}
         </div>
       </Section>
 
