@@ -967,12 +967,15 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
               {product.timeOfDay === 'pm' ? '🌙晚' : '☀️早'}
             </span>
           )}
-          {cautionText && (
-            <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', whiteSpace: 'nowrap' }}>⚠ {cautionText.slice(0, 8)}</span>
-          )}
         </div>
       </div>
+      {cautionText && (
+        <div style={{ paddingLeft: 62, paddingRight: 12, paddingBottom: 10, fontSize: 12, color: '#B07020', lineHeight: 1.4 }}>
+          ⚠️ {cautionText}
+        </div>
+      )}
     </div>
+  </div>
   )
 }
 
