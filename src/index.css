@@ -204,3 +204,65 @@ textarea:focus {
   100% { transform: scale(1); }
 }
 .check-pop { animation: checkPop 0.3s ease; }
+
+/* check circle bounce — 打勾時的彈跳 */
+@keyframes checkBounce {
+  0%   { transform: scale(0.4); opacity: 0; }
+  55%  { transform: scale(1.18); }
+  80%  { transform: scale(0.94); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.check-bounce { animation: checkBounce 0.28s cubic-bezier(.34,1.4,.64,1) both; }
+
+/* item card flash — 卡片打勾後背景閃一下 */
+@keyframes itemFlash {
+  0%   { background: #EEF4EC; }
+  40%  { background: #D7EDD4; }
+  100% { background: #F6FAF5; }
+}
+.item-flash { animation: itemFlash 0.38s ease both; }
+
+/* progress bar fill burst — 達到 100% 時脈動 */
+@keyframes fillBurst {
+  0%   { opacity: 1; }
+  35%  { opacity: 0.65; transform: scaleY(1.08); }
+  100% { opacity: 1;  transform: scaleY(1); }
+}
+.fill-burst { animation: fillBurst 0.4s ease; }
+
+/* completion card slide up */
+@keyframes completionSlideUp {
+  from { transform: translateY(18px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.completion-slide-up { animation: completionSlideUp 0.38s cubic-bezier(.34,1.2,.64,1) both; }
+
+/* leaf pop — day completion 小葉片依序出現 */
+@keyframes leafPop {
+  0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+  65%  { transform: scale(1.2) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg);   opacity: 1; }
+}
+
+/* toast slide up from bottom */
+@keyframes toastSlideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes toastFadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
+
+/* section tag complete transition */
+@keyframes tagComplete {
+  0%   { background: #EFD7D7; color: #9A6060; }
+  100% { background: #D7DFD2; color: #5A7A52; }
+}
+
+/* completion ring draw — 完成時圓圈從 0 畫到滿 */
+@keyframes ringFill {
+  from { stroke-dashoffset: 151; }
+  to   { stroke-dashoffset: 0; }
+}
+.ring-draw { animation: ringFill 0.9s cubic-bezier(.34,1.0,.64,1) 0.1s both; }

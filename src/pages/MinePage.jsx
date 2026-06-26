@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { showToast } from '../components/Toast.jsx'
 
 function NavRow({ icon, label, desc, onClick }) {
   return (
@@ -27,7 +28,6 @@ export default function MinePage({ store, onNavigate }) {
   const [goalWeight, setGoalWeight] = useState(settings.bodyGoalWeight ?? '')
   const [goalFat, setGoalFat] = useState(settings.bodyGoalFat ?? '')
   const [goalWater, setGoalWater] = useState(settings.waterGoalMl ?? 2000)
-  const [saved, setSaved] = useState(false)
 
   React.useEffect(() => {
     setUserName(settings.userName)
@@ -43,8 +43,7 @@ export default function MinePage({ store, onNavigate }) {
       bodyGoalFat: goalFat !== '' ? parseFloat(goalFat) : null,
       waterGoalMl: parseInt(goalWater) || 2000,
     })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    showToast('設定已儲存 ✓')
   }
 
   return (
@@ -81,13 +80,8 @@ export default function MinePage({ store, onNavigate }) {
         </div>
       </div>
 
-      <button className="btn-primary" onClick={handleSave} style={{
-        background: saved ? '#D7DFD2' : 'var(--color-milk)',
-        color: saved ? '#5A7A52' : 'var(--text-primary)',
-        transition: 'background 0.3s, color 0.3s',
-        marginBottom: 28,
-      }}>
-        {saved ? '✓ 已儲存' : '儲存設定'}
+      <button className="btn-primary" onClick={handleSave} style={{ marginBottom: 28 }}>
+        儲存設定
       </button>
 
       {/* ── 功能管理 ── */}

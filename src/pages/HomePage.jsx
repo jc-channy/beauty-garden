@@ -1,5 +1,6 @@
 import React from 'react'
 import { todayKey, localDateStr, CATEGORY_COLORS, isUsedOnDate } from '../store/useStore.js'
+import { showToast } from '../components/Toast.jsx'
 
 const DOW = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -150,6 +151,7 @@ function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat }) {
     const bf = parseFloat(bodyFat) || null
     if (w !== null || bf !== null) {
       onSave(selectedDate, w, bf)
+      showToast('體態已記錄 ✓')
     }
   }
 
@@ -319,9 +321,26 @@ function WaterModal({ quickAmounts, onAdd, onUpdateQuickAmounts, onClose }) {
 function WaterSection({ totalMl, goalMl, quickAmounts, entries, onAdd, onDeleteEntry, onUpdateQuickAmounts }) {
   const [showModal, setShowModal] = React.useState(false)
   const [showEntries, setShowEntries] = React.useState(false)
+  const [justAdded, setJustAdded] = React.useState(false)
+  const prevDoneRef = React.useRef(totalMl >= goalMl)
   const pct = Math.min(100, goalMl > 0 ? Math.round((totalMl / goalMl) * 100) : 0)
   const done = totalMl >= goalMl
   const remaining = goalMl - totalMl
+
+  function handleAdd(ml) {
+    onAdd(ml)
+    setJustAdded(true)
+    setTimeout(() => setJustAdded(false), 450)
+    const newTotal = totalMl + ml
+    const nowDone = newTotal >= goalMl
+    if (nowDone && !prevDoneRef.current) {
+      showToast('飲水達標！今天水喝夠了 💧')
+    } else {
+      const msgs = ['很好，今天又照顧自己一點點', '繼續補充，快到了 ✦', `再 ${Math.max(0, goalMl - newTotal)} ml 就達標`]
+      showToast(`+ ${ml} ml  ${msgs[Math.floor(Math.random() * (nowDone ? 1 : msgs.length))]}`)
+    }
+    prevDoneRef.current = nowDone
+  }
 
   const WATER_DONE_MSGS = [
     '今天水喝夠了，身體謝謝你 🎉',
@@ -348,7 +367,10 @@ function WaterSection({ totalMl, goalMl, quickAmounts, entries, onAdd, onDeleteE
 
         {/* Progress bar */}
         <div style={{ height: 16, background: '#EDE6DE', borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
-          <div style={{ width: `${pct}%`, height: '100%', background: done ? '#85B7EB' : '#B5D4F4', borderRadius: 8, transition: 'width 0.4s ease' }} />
+          <div
+            className={justAdded && done ? 'fill-burst' : ''}
+            style={{ width: `${pct}%`, height: '100%', background: done ? '#85B7EB' : '#B5D4F4', borderRadius: 8, transition: 'width 0.5s cubic-bezier(.34,1.2,.64,1)' }}
+          />
         </div>
 
         {/* Motivation text */}
@@ -398,7 +420,7 @@ function WaterSection({ totalMl, goalMl, quickAmounts, entries, onAdd, onDeleteE
       {showModal && (
         <WaterModal
           quickAmounts={quickAmounts}
-          onAdd={onAdd}
+          onAdd={handleAdd}
           onUpdateQuickAmounts={onUpdateQuickAmounts}
           onClose={() => setShowModal(false)}
         />
@@ -600,7 +622,7 @@ function SupplementSection({ items, checked, selectedDate, onToggle, onEditItems
               const firstTiming = timings[0]
               const tc = (firstTiming && TIMING_COLORS[firstTiming]) || { bg: '#EEEDFE', text: '#534AB7' }
               return (
-                <button key={item.name} onClick={() => onToggle(item.name, selectedDate)} style={{
+                <button key={item.name} onClick={() => { onToggle(item.name, selectedDate); if (!done) showToast(`${item.name} 完成 ✦`) }} style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4,
                   padding: '7px 12px', borderRadius: 16,
                   background: done ? tc.bg : 'var(--bg-surface)',
@@ -876,6 +898,8 @@ function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDele
           typeName={activeModal}
           onSave={(durationMin, intensity, subType) => {
             onAdd(selectedDate, activeModal, subType || '', durationMin, intensity)
+            const label = subType || activeModal
+            showToast(`${label} ${durationMin} 分鐘，記錄了 ✦`)
             setActiveModal(null)
           }}
           onClose={() => setActiveModal(null)}
@@ -921,6 +945,18 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
     ((section === 'am' && product.timeOfDay === 'pm') || (section === 'pm' && product.timeOfDay === 'am'))
   const cautionText = getCautionText(product)
 
+  const prevUsedRef = React.useRef(usedToday)
+  const [justChecked, setJustChecked] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!prevUsedRef.current && usedToday) {
+      setJustChecked(true)
+      showToast(`${displayName} 完成 ✦`)
+      setTimeout(() => setJustChecked(false), 420)
+    }
+    prevUsedRef.current = usedToday
+  }, [usedToday, displayName])
+
   const touchRef = React.useRef(null)
   const [swipeX, setSwipeX] = React.useState(0)
 
@@ -947,11 +983,12 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
       <div
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd} onClick={handleClick}
+        className={justChecked ? 'item-flash' : ''}
         style={{
           background: usedToday ? '#F6FAF5' : 'var(--bg-card)',
           borderRadius: 10,
           border: `0.5px solid ${mismatch ? '#E8C080' : usedToday ? '#D0DFCA' : 'var(--border-soft)'}`,
-          transition: clampedX !== 0 ? 'none' : 'all 0.2s',
+          transition: clampedX !== 0 ? 'none' : 'border-color 0.2s',
           cursor: 'pointer', touchAction: 'pan-y',
           transform: `translateX(${clampedX}px)`,
           position: 'relative', zIndex: 1, userSelect: 'none',
@@ -960,14 +997,16 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
       >
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '12px 12px' }}>
         {/* 序號 / 打勾 */}
-        <div style={{
-          width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-          border: `1.5px solid ${usedToday ? '#7AAA6A' : '#D8CCBF'}`,
-          background: usedToday ? '#7AAA6A' : 'transparent',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: usedToday ? 11 : 10, color: usedToday ? '#fff' : 'var(--text-muted)', fontWeight: 500,
-          transition: 'all 0.2s',
-        }}>{usedToday ? '✓' : (index ?? '')}</div>
+        <div
+          className={justChecked ? 'check-bounce' : ''}
+          style={{
+            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+            border: `1.5px solid ${usedToday ? '#7AAA6A' : '#D8CCBF'}`,
+            background: usedToday ? '#7AAA6A' : 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: usedToday ? 11 : 10, color: usedToday ? '#fff' : 'var(--text-muted)', fontWeight: 500,
+            transition: justChecked ? 'none' : 'all 0.2s',
+          }}>{usedToday ? '✓' : (index ?? '')}</div>
 
         {/* 縮圖 */}
         {product.imagePreview ? (
@@ -1072,35 +1111,45 @@ function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggl
 }
 
 // ── Completion card ───────────────────────────────────────────
+const LEAVES = ['🌿', '✿', '🌱', '✿', '🌿']
+
 function CompletionCard({ done, total, streak }) {
   const [dismissed, setDismissed] = React.useState(false)
   const msg = COMPLETION_MSGS[new Date().getDate() % COMPLETION_MSGS.length]
+  const h = new Date().getHours()
+  const closeLabel = h >= 22 || h < 5 ? '今晚做到了，晚安 🌙' : h >= 18 ? '收工，今晚好好休息' : '繼續查看紀錄'
+  const circ = 2 * Math.PI * 24
 
   if (dismissed) return null
 
   return (
-    <div style={{
+    <div className="completion-slide-up" style={{
       background: 'linear-gradient(135deg, #FDF8F2, #F2EDE4)',
       border: '0.5px solid #E8D8C8',
       borderRadius: 20, padding: '20px 18px 16px',
       textAlign: 'center', marginBottom: 12,
-      animation: 'fadeIn 0.4s ease',
     }}>
       <svg width="56" height="56" viewBox="0 0 56 56" style={{ marginBottom: 10 }}>
         <circle cx="28" cy="28" r="24" fill="none" stroke="#F2E6D9" strokeWidth="4" />
         <circle cx="28" cy="28" r="24" fill="none" stroke="#C8A87A" strokeWidth="4"
-          strokeDasharray={`${2 * Math.PI * 24}`} strokeDashoffset="0"
-          strokeLinecap="round" transform="rotate(-90 28 28)" />
+          strokeDasharray={circ} strokeDashoffset="0"
+          strokeLinecap="round" transform="rotate(-90 28 28)"
+          className="ring-draw" />
         <text x="28" y="32" textAnchor="middle" fontSize="13" fill="#8A6A40" fontWeight="500">
           {done}/{total}
         </text>
       </svg>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 10 }}>
+        {LEAVES.map((leaf, i) => (
+          <span key={i} style={{ animation: `leafPop 0.4s cubic-bezier(.34,1.4,.64,1) ${0.3 + i * 0.08}s both`, display: 'inline-block', fontSize: 16 }}>{leaf}</span>
+        ))}
+      </div>
       <div style={{ fontSize: 17, fontWeight: 500, color: '#8A6A40', marginBottom: 6 }}>{msg}</div>
       {streak > 1 && (
         <div style={{ fontSize: 12, color: '#B09070', marginBottom: 12 }}>連續 {streak} 天，繼續保持 ✦</div>
       )}
       <button onClick={() => setDismissed(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#C4A880', padding: '4px 8px', textDecoration: 'underline' }}>
-        繼續查看紀錄
+        {closeLabel}
       </button>
     </div>
   )
