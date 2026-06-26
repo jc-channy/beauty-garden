@@ -310,6 +310,18 @@ function SkincareTracker({ products, amOrder, pmOrder, forcedSection }) {
   )
 }
 
+// ── Supplement color palette (cycles per item) ────────────────
+const SUPP_COLOR_CYCLE = [
+  { bg: '#EFD7D7', text: '#9A6060' },
+  { bg: '#D8D3DF', text: '#6A5A7A' },
+  { bg: '#D7DFD2', text: '#5A7A52' },
+  { bg: '#F2E6D9', text: '#8A6A40' },
+  { bg: '#E6F1FB', text: '#185FA5' },
+  { bg: '#EEEDFE', text: '#534AB7' },
+  { bg: '#FEF3C0', text: '#6B4A00' },
+  { bg: '#D7EDD4', text: '#245020' },
+]
+
 // ── Supplement weekly tracker ──────────────────────────────────
 function SupplementTracker({ supplementItems, supplementCheckins }) {
   const [weekOffset, setWeekOffset] = useState(0)
@@ -343,25 +355,32 @@ function SupplementTracker({ supplementItems, supplementCheckins }) {
             )
           })}
         </div>
-        {items.map(item => (
-          <div key={item.name} style={{ display: 'flex', alignItems: 'center', paddingBottom: 4, paddingLeft: 4 }}>
-            <div style={{ width: 100, minWidth: 100, paddingRight: 6 }}>
-              <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{item.name}</span>
-              {item.amount ? <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.amount}</span> : null}
-            </div>
-            {weekDates.map(d => {
-              const taken = (supplementCheckins[d] || []).includes(item.name)
-              const isFuture = d > todayStr
-              return (
-                <div key={d} style={{ width: 34, minWidth: 34, textAlign: 'center' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 7, margin: '0 auto', background: taken ? '#EEEDFE' : isFuture ? 'transparent' : 'var(--bg-surface)', border: taken ? 'none' : isFuture ? 'none' : '0.5px solid var(--border-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {taken && <span style={{ fontSize: 12, color: '#534AB7' }}>✓</span>}
+        {items.map((item, idx) => {
+          const c = SUPP_COLOR_CYCLE[idx % SUPP_COLOR_CYCLE.length]
+          return (
+            <div key={item.name} style={{ display: 'flex', alignItems: 'center', paddingBottom: 4, paddingLeft: 4 }}>
+              <div style={{ width: 100, minWidth: 100, paddingRight: 6 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{item.name}</span>
+              </div>
+              {weekDates.map(d => {
+                const taken = (supplementCheckins[d] || []).includes(item.name)
+                const isFuture = d > todayStr
+                return (
+                  <div key={d} style={{ width: 34, minWidth: 34, textAlign: 'center' }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 7, margin: '0 auto',
+                      background: taken ? c.bg : isFuture ? 'transparent' : 'var(--bg-surface)',
+                      border: taken ? `0.5px solid ${c.text}30` : isFuture ? 'none' : '0.5px solid var(--border-soft)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {taken && <span style={{ fontSize: 12, color: c.text }}>✓</span>}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        ))}
+                )
+              })}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
