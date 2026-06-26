@@ -537,24 +537,24 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
   const swipingLeft  = clampedX < -10
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 14, marginBottom: 6 }}>
+    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 10, marginBottom: 3 }}>
       {swipingRight && (
-        <div style={{ position: 'absolute', inset: 0, background: '#EEF4EC', borderRadius: 14, display: 'flex', alignItems: 'center', paddingLeft: 14 }}>
-          <span style={{ fontSize: 16, color: '#5A7A52' }}>✓</span>
+        <div style={{ position: 'absolute', inset: 0, background: '#EEF4EC', borderRadius: 10, display: 'flex', alignItems: 'center', paddingLeft: 12 }}>
+          <span style={{ fontSize: 14, color: '#5A7A52' }}>✓</span>
         </div>
       )}
       {swipingLeft && (
-        <div style={{ position: 'absolute', inset: 0, background: '#FFF0F0', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 14 }}>
-          <span style={{ fontSize: 14, color: '#C07070' }}>✕</span>
+        <div style={{ position: 'absolute', inset: 0, background: '#FFF0F0', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 12 }}>
+          <span style={{ fontSize: 13, color: '#C07070' }}>✕</span>
         </div>
       )}
       <div
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd} onClick={handleClick}
         style={{
-          display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+          display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px',
           background: usedToday ? '#F6FAF5' : 'var(--bg-card)',
-          borderRadius: 14,
+          borderRadius: 10,
           border: `0.5px solid ${mismatch ? '#E8C080' : usedToday ? '#D0DFCA' : 'var(--border-soft)'}`,
           transition: clampedX !== 0 ? 'none' : 'all 0.2s',
           cursor: 'pointer', touchAction: 'pan-y',
@@ -562,36 +562,42 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
           position: 'relative', zIndex: 1, userSelect: 'none',
         }}
       >
+        {/* 序號 / 打勾 */}
         <div style={{
-          width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+          width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
           border: `1.5px solid ${usedToday ? '#7AAA6A' : '#D8CCBF'}`,
           background: usedToday ? '#7AAA6A' : 'transparent',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: usedToday ? 13 : 11, color: usedToday ? '#fff' : 'var(--text-muted)', fontWeight: 500,
+          fontSize: usedToday ? 11 : 10, color: usedToday ? '#fff' : 'var(--text-muted)', fontWeight: 500,
           transition: 'all 0.2s',
         }}>{usedToday ? '✓' : (index ?? '')}</div>
-        {product.imagePreview && (
-          <img src={product.imagePreview} alt={displayName} style={{ width: 36, height: 36, borderRadius: 9, objectFit: 'cover', flexShrink: 0, border: '0.5px solid var(--border-soft)', opacity: usedToday ? 0.7 : 1 }} />
+
+        {/* 縮圖 */}
+        {product.imagePreview ? (
+          <img src={product.imagePreview} alt={displayName} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: '0.5px solid var(--border-soft)', opacity: usedToday ? 0.6 : 1 }} />
+        ) : (
+          product.category && (() => {
+            const c = CATEGORY_COLORS[product.category] || { bg: '#EEE8E0', text: '#888' }
+            return <div style={{ width: 28, height: 28, borderRadius: 6, flexShrink: 0, background: c.bg }} />
+          })()
         )}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 500, color: usedToday ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: usedToday ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'all 0.2s' }}>
+
+        {/* 名稱 + badges */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: usedToday ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: usedToday ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'all 0.2s', maxWidth: '55%' }}>
             {displayName}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2, flexWrap: 'wrap' }}>
-            {product.category && (() => {
-              const c = CATEGORY_COLORS[product.category] || { bg: '#EEE', text: '#666' }
-              return <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500 }}>{product.category}</span>
-            })()}
-            {subName && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{subName}</span>}
-            {mismatch && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', fontWeight: 500 }}>
-              {product.timeOfDay === 'pm' ? '🌙 建議晚上用' : '☀️ 建議白天用'}
-            </span>}
-          </div>
+          </span>
+          {product.category && (() => {
+            const c = CATEGORY_COLORS[product.category] || { bg: '#EEE', text: '#666' }
+            return <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 500, whiteSpace: 'nowrap' }}>{product.category}</span>
+          })()}
+          {mismatch && (
+            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', fontWeight: 500, whiteSpace: 'nowrap' }}>
+              {product.timeOfDay === 'pm' ? '🌙晚' : '☀️早'}
+            </span>
+          )}
           {(product.caution || []).length > 0 && !usedToday && (
-            <div style={{ fontSize: 11, color: '#9A6010', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
-              <span>⚠️</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.caution[0]}</span>
-            </div>
+            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: '#FEF0D0', color: '#9A6010', whiteSpace: 'nowrap' }}>⚠ {product.caution[0].slice(0, 6)}</span>
           )}
         </div>
       </div>
@@ -627,18 +633,18 @@ function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggl
             <>
               {amProducts.length > 0 && (
                 <>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>☀️ 早上</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>☀️ 早上</div>
                   {amProducts.map((p, idx) => (
                     <CheckItem key={p.id} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, 'am')} onToggle={() => onToggle(p.id, 'am')} section="am" index={idx + 1} />
                   ))}
                 </>
               )}
               {amProducts.length > 0 && pmProducts.length > 0 && (
-                <div style={{ height: '0.5px', background: 'var(--border-soft)', margin: '10px 0' }} />
+                <div style={{ height: '0.5px', background: 'var(--border-soft)', margin: '8px 0' }} />
               )}
               {pmProducts.length > 0 && (
                 <>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>🌙 晚上</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🌙 晚上</div>
                   {pmProducts.map((p, idx) => (
                     <CheckItem key={p.id} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, 'pm')} onToggle={() => onToggle(p.id, 'pm')} section="pm" index={idx + 1} />
                   ))}
