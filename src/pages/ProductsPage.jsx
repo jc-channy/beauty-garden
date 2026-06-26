@@ -448,7 +448,7 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
 }
 
 // ── Main Page ─────────────────────────────────────────────────
-export default function ProductsPage({ store }) {
+export default function ProductsPage({ store, onBack }) {
   const { state, addProduct, deleteProduct, updateProduct } = store
   const [showAdd, setShowAdd] = useState(false)
   const [activeCategory, setActiveCategory] = useState('全部')
@@ -467,6 +467,11 @@ export default function ProductsPage({ store }) {
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 24 }}>
       <div style={{ marginBottom: 16 }}>
+        {onBack && (
+          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-secondary)', padding: '0 0 10px', display: 'flex', alignItems: 'center', gap: 4 }}>
+            ‹ 返回
+          </button>
+        )}
         <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>我的產品</div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{state.products.length} 個保養品</div>
       </div>
