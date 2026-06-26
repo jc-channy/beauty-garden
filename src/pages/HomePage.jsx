@@ -109,12 +109,12 @@ function ProgressRing({ done, total }) {
 // ── Section card wrapper ──────────────────────────────────────
 function SectionCard({ tag, tagBg, tagText, children, headerRight }) {
   return (
-    <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px solid var(--border-soft)', marginBottom: 10, overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 8px' }}>
+    <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px solid var(--border-soft)', marginBottom: 18, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px 10px' }}>
         <span style={{ fontSize: 13, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: tagBg, color: tagText }}>{tag}</span>
         {headerRight}
       </div>
-      <div style={{ padding: '0 14px 12px' }}>{children}</div>
+      <div style={{ padding: '0 14px 14px' }}>{children}</div>
     </div>
   )
 }
@@ -187,8 +187,8 @@ function WaterSection({ totalMl, goalMl, quickAmounts, onAdd, onReset }) {
         {totalMl}ml / {goalMl}ml {done ? '✓' : ''}
       </span>}>
       {/* Progress bar */}
-      <div style={{ height: 6, background: '#EDE6DE', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: done ? '#85B7EB' : '#B5D4F4', borderRadius: 3, transition: 'width 0.3s ease' }} />
+      <div style={{ height: 10, background: '#EDE6DE', borderRadius: 6, overflow: 'hidden', marginBottom: 10 }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: done ? '#85B7EB' : '#B5D4F4', borderRadius: 6, transition: 'width 0.3s ease' }} />
       </div>
       {/* Quick buttons */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -628,7 +628,7 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd} onClick={handleClick}
         style={{
-          display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px',
+          display: 'flex', alignItems: 'center', gap: 9, padding: '12px 12px',
           background: usedToday ? '#F6FAF5' : 'var(--bg-card)',
           borderRadius: 10,
           border: `0.5px solid ${mismatch ? '#E8C080' : usedToday ? '#D0DFCA' : 'var(--border-soft)'}`,
@@ -694,9 +694,9 @@ function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggl
   const tabDone    = tab === 'am' ? amDone : pmDone
 
   return (
-    <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px solid var(--border-soft)', marginBottom: 10, overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px solid var(--border-soft)', marginBottom: 18, overflow: 'hidden' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 500, padding: '2px 10px', borderRadius: 20, background: '#EFD7D7', color: '#9A6060' }}>保養</span>
           {allDone && <span style={{ fontSize: 11, color: '#5A8A50', background: '#EEF4EC', borderRadius: 6, padding: '1px 6px' }}>全完成 ✓</span>}
