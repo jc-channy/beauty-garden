@@ -15,15 +15,31 @@ const COMPLETION_MSGS = [
   '好好愛自己，是一種練習',
   '今天也完成了，辛苦了',
   '你值得被好好對待',
+  '這份自律，皮膚都記得',
+  '堅持的樣子，很美',
+  '今天的你，做得很棒',
+  '一天一點點，就是在變好',
+  '把自己放在第一位，做得好',
 ]
 
-function getTimeGreeting(userName) {
+function getTimeGreeting(userName, skincareStreak) {
   const h = new Date().getHours()
-  const name = userName ? `${userName}，` : ''
-  if (h >= 5  && h < 12) return `早安，${name}從哪裡開始 ✿`
-  if (h >= 12 && h < 18) return `${name}下午也記得照顧自己 ✿`
-  if (h >= 18 && h < 22) return `${name}保養時間到了 ✿`
-  return `${name}終於到你的時間了 ✿`
+  const dow = new Date().getDay()
+  const name = userName ? `${userName}🌷，` : ''
+  const streakPart = skincareStreak >= 7 ? `連續 ${skincareStreak} 天，`
+    : skincareStreak >= 3 ? `連續 ${skincareStreak} 天，` : ''
+  if (h >= 5 && h < 12) {
+    if (dow === 1) return `${name}${streakPart}週一早安，新的一週從這裡開始 ✿`
+    if (dow === 5) return `${name}${streakPart}週五早安，撐過今天就可以放鬆 ✿`
+    if (dow === 0) return `${name}${streakPart}週日早安，今天好好休息也好 ✿`
+    return `${name}${streakPart}早安，從哪裡開始 ✿`
+  }
+  if (h >= 12 && h < 18) {
+    if (dow === 5) return `${name}${streakPart}週五下午，快到了 ✿`
+    return `${name}${streakPart}下午也記得照顧自己 ✿`
+  }
+  if (h >= 18 && h < 22) return `${name}${streakPart}保養時間到了 ✿`
+  return `${name}${streakPart}終於到你的時間了 ✿`
 }
 
 function formatHeader() {
@@ -307,10 +323,20 @@ function WaterSection({ totalMl, goalMl, quickAmounts, entries, onAdd, onDeleteE
   const done = totalMl >= goalMl
   const remaining = goalMl - totalMl
 
+  const WATER_DONE_MSGS = [
+    '今天水喝夠了，身體謝謝你 🎉',
+    '水分達標！皮膚今天很開心 ✦',
+    '喝夠水了，繼續保持 ✦',
+    '達標了！水是最好的保養品 💧',
+    '今天的水完成了，做得很好 ✦',
+  ]
   function motivationText() {
-    if (totalMl === 0) return '今天還沒喝水，先來一杯吧 💧'
-    if (!done) return `再 ${remaining} ml 就達標，繼續加油 ✦`
-    return '今天水喝夠了，做得很好 🎉'
+    if (totalMl === 0) return '今天還沒喝水，先來一杯暖暖的吧 💧'
+    const pct = goalMl > 0 ? totalMl / goalMl : 0
+    if (pct < 0.34) return `開始了，繼續補充水分 ✦`
+    if (pct < 0.67) return `過半了！再努力一下 ✦`
+    if (pct < 1) return `快到了，再 ${remaining} ml 就達標 ✦`
+    return WATER_DONE_MSGS[new Date().getDate() % WATER_DONE_MSGS.length]
   }
 
   return (
@@ -1159,13 +1185,42 @@ export default function HomePage({ store, onManageGroups }) {
     return s
   })()
 
+  // Skincare streak for greeting
+  const skincareStreak = React.useMemo(() => {
+    let s = 0
+    for (let i = 0; i < 60; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i)
+      const key = localDateStr(d)
+      if ((products || []).some(p => isUsedOnDate(p.usageLog, key, null))) s++; else break
+    }
+    return s
+  }, [products])
+
+  // Contextual summary line (today only)
+  const skincareDoneToday = amProducts.length + pmProducts.length > 0 &&
+    amDone + pmDone === amProducts.length + pmProducts.length
+  const waterDoneToday = waterToday >= waterGoal
+  const exercisedToday = todayExercises.length > 0
+  const summaryMsg = selectedDate === today ? (() => {
+    if (skincareDoneToday && waterDoneToday && exercisedToday) return '今天把自己照顧得很完整 🌟'
+    if (skincareDoneToday && waterDoneToday) return '保養和飲水都完成了，今天很用心 ✦'
+    if (skincareDoneToday && exercisedToday) return '保養完成、運動也做了，很棒 ✦'
+    if (waterDoneToday && exercisedToday) return '水喝夠了，運動也做了，繼續保持 ✦'
+    if (skincareDoneToday) return '保養完成了！記得繼續補水 💧'
+    if (exercisedToday) return '今天有動到，身體很感謝你 ✦'
+    return null
+  })() : null
+
   return (
     <div className="page-scroll fade-in" style={{ paddingTop: 18 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.04em', marginBottom: 3 }}>{formatHeader()}</div>
-          <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.4 }}>{getTimeGreeting(settings.userName)}</div>
+          <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.4 }}>{getTimeGreeting(settings.userName, skincareStreak)}</div>
+          {summaryMsg && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{summaryMsg}</div>
+          )}
         </div>
         <ProgressRing done={doneCount} total={totalCount} />
       </div>

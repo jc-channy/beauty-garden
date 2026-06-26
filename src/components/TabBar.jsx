@@ -3,8 +3,8 @@ import React from 'react'
 const TABS = [
   { id: 'today',        label: '今日',  icon: '✦' },
   { id: 'achievements', label: '成就',  icon: '◉' },
-  { id: 'mine',         label: '我的',  icon: '◈' },
   { id: 'makeup',       label: '化妝',  icon: '✿' },
+  { id: 'mine',         label: '我的',  icon: '◈' },
 ]
 
 export default function TabBar({ current, onChange }) {

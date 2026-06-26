@@ -659,8 +659,7 @@ export default function AchievementsPage({ store }) {
     { id: 'supplement', label: '保健品' },
     { id: 'am_skincare', label: '早上保養' },
     { id: 'pm_skincare', label: '晚上保養' },
-    { id: 'water', label: '飲水紀錄' },
-    { id: 'exercise', label: '運動紀錄' },
+    { id: 'hydration_exercise', label: '飲水 & 運動' },
   ]
 
   return (
@@ -696,11 +695,14 @@ export default function AchievementsPage({ store }) {
           {trackingTab === 'pm_skincare' && (
             <SkincareTracker products={products} amOrder={settings.trackerAmOrder} pmOrder={settings.trackerPmOrder} forcedSection="pm" />
           )}
-          {trackingTab === 'water' && (
-            <WaterWeekGrid waterLogs={waterLogs || {}} goalMl={settings.waterGoalMl || 2000} />
-          )}
-          {trackingTab === 'exercise' && (
-            <ExerciseGrid exercises={exercises || []} exerciseTypes={settings.exerciseTypes || []} onUpdateTypes={updateExerciseTypes} />
+          {trackingTab === 'hydration_exercise' && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 500, color: '#185FA5', marginBottom: 10 }}>飲水</div>
+              <WaterWeekGrid waterLogs={waterLogs || {}} goalMl={settings.waterGoalMl || 2000} />
+              <div style={{ height: '0.5px', background: 'var(--border-soft)', margin: '16px 0' }} />
+              <div style={{ fontSize: 11, fontWeight: 500, color: '#5A7A52', marginBottom: 10 }}>運動</div>
+              <ExerciseGrid exercises={exercises || []} exerciseTypes={settings.exerciseTypes || []} onUpdateTypes={updateExerciseTypes} />
+            </div>
           )}
         </div>
       </Section>
