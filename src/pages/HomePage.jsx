@@ -1207,7 +1207,6 @@ export default function HomePage({ store, onManageGroups }) {
     if (skincareDoneToday && exercisedToday) return '保養完成、運動也做了，很棒 ✦'
     if (waterDoneToday && exercisedToday) return '水喝夠了，運動也做了，繼續保持 ✦'
     if (skincareDoneToday) return '保養完成了！記得繼續補水 💧'
-    if (exercisedToday) return '今天有動到，身體很感謝你 ✦'
     return null
   })() : null
 
