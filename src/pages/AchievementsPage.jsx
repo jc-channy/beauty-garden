@@ -26,6 +26,13 @@ function TabPill({ tabs, active, onChange }) {
   )
 }
 
+// ── Water ml helper ────────────────────────────────────────────
+function waterMl(waterLogs, date) {
+  const d = waterLogs[date]
+  if (!d) return 0
+  return typeof d === 'number' ? d : (d.total || 0)
+}
+
 // ── Body calendar view ─────────────────────────────────────────
 function BodyCalendar({ bodyLogs, metric }) {
   const today = new Date()
@@ -45,6 +52,7 @@ function BodyCalendar({ bodyLogs, metric }) {
     if (month === 11) { setYear(y => y + 1); setMonth(0) }
     else setMonth(m => m + 1)
   }
+  function goToday() { setYear(today.getFullYear()); setMonth(today.getMonth()) }
 
   // Build calendar grid (Mon-first)
   const firstDow = new Date(year, month, 1).getDay() // 0=Sun
@@ -63,7 +71,12 @@ function BodyCalendar({ bodyLogs, metric }) {
       {/* Month nav */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--text-secondary)', padding: '2px 10px' }}>‹</button>
-        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{year} 年 {month + 1} 月</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{year} 年 {month + 1} 月</div>
+          {!isCurrentMonth && (
+            <button onClick={goToday} style={{ fontSize: 11, color: '#8A6A40', background: '#F2E6D9', border: 'none', borderRadius: 8, padding: '2px 8px', cursor: 'pointer' }}>回本月</button>
+          )}
+        </div>
         <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: isCurrentMonth ? 'var(--border-soft)' : 'var(--text-secondary)', padding: '2px 10px' }}>›</button>
       </div>
       {/* Day-of-week header */}
@@ -162,22 +175,24 @@ function BodyTrendSection({ bodyLogs, goalWeight, goalFat }) {
   const [period, setPeriod] = useState('1M')
   const [metric, setMetric] = useState('weight')
 
+  const btnStyle = (active) => ({
+    padding: '5px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer', border: '0.5px solid',
+    borderColor: active ? '#C8A87A' : 'var(--border-soft)',
+    background: active ? '#F2E6D9' : 'var(--bg-surface)',
+    color: active ? '#8A6A40' : 'var(--text-muted)',
+    fontWeight: active ? 500 : 400,
+  })
+
   return (
     <div>
-      {/* Top controls: metric + view toggle — always visible */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ display: 'flex', gap: 5 }}>
-          {[['weight', '體重'], ['bodyFat', '體脂']].map(([k, label]) => (
-            <button key={k} onClick={() => setMetric(k)} style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer', border: '0.5px solid', borderColor: metric === k ? '#C8A87A' : 'var(--border-soft)', background: metric === k ? '#F2E6D9' : 'var(--bg-surface)', color: metric === k ? '#8A6A40' : 'var(--text-muted)', fontWeight: metric === k ? 500 : 400 }}>{label}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 5 }}>
-          {[['calendar', '月曆'], ['chart', '折線']].map(([v, label]) => (
-            <button key={v} onClick={() => setViewMode(v)} style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer', border: '0.5px solid', borderColor: viewMode === v ? '#C8A87A' : 'var(--border-soft)', background: viewMode === v ? '#F2E6D9' : 'var(--bg-surface)', color: viewMode === v ? '#8A6A40' : 'var(--text-muted)', fontWeight: viewMode === v ? 500 : 400 }}>{label}</button>
-          ))}
-        </div>
+      {/* 體重 / 體脂 selector */}
+      <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
+        {[['weight', '體重'], ['bodyFat', '體脂']].map(([k, label]) => (
+          <button key={k} onClick={() => setMetric(k)} style={btnStyle(metric === k)}>{label}</button>
+        ))}
       </div>
 
+      {/* Chart / calendar content */}
       {viewMode === 'calendar' ? (
         <BodyCalendar bodyLogs={bodyLogs || {}} metric={metric} />
       ) : (
@@ -190,21 +205,28 @@ function BodyTrendSection({ bodyLogs, goalWeight, goalFat }) {
           <BodyLineChart bodyLogs={bodyLogs} period={period} metric={metric} goalWeight={goalWeight} goalFat={goalFat} />
         </>
       )}
+
+      {/* 月曆 / 折線 toggle — 移到圖表下方 */}
+      <div style={{ display: 'flex', gap: 5, marginTop: 14 }}>
+        {[['calendar', '月曆'], ['chart', '折線']].map(([v, label]) => (
+          <button key={v} onClick={() => setViewMode(v)} style={btnStyle(viewMode === v)}>{label}</button>
+        ))}
+      </div>
     </div>
   )
 }
 
 // ── Skincare habit tracker ─────────────────────────────────────
-function SkincareTracker({ products, amOrder, pmOrder }) {
+function SkincareTracker({ products, amOrder, pmOrder, forcedSection }) {
   const hour = new Date().getHours()
-  const [section, setSection] = useState(hour >= 12 ? 'pm' : 'am')
+  const [section, setSection] = useState(forcedSection || (hour >= 12 ? 'pm' : 'am'))
   const [weekOffset, setWeekOffset] = useState(0)
   const weekDates = getWeekDates(weekOffset)
   const todayStr = localDateStr(new Date())
   const DOW = ['一', '二', '三', '四', '五', '六', '日']
   const fmt = d => `${d.slice(5, 7)}/${d.slice(8, 10)}`
   const filtered = products.filter(p => !p.timeOfDay || p.timeOfDay === section)
-  const order = section === 'am' ? amOrder : pmOrder
+  const order = (section === 'am' ? amOrder : pmOrder) || []
   const sorted = (() => {
     if (!order || order.length === 0) return filtered
     const indexed = new Map(order.map((id, i) => [id, i]))
@@ -218,11 +240,13 @@ function SkincareTracker({ products, amOrder, pmOrder }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-        {[['am', '☀️ 白天'], ['pm', '🌙 晚上']].map(([s, label]) => (
-          <button key={s} onClick={() => setSection(s)} style={{ padding: '5px 14px', borderRadius: 20, border: '0.5px solid', borderColor: section === s ? '#A8C8A0' : 'var(--border-soft)', background: section === s ? '#EEF4EC' : 'var(--bg-surface)', color: section === s ? '#5A7A52' : 'var(--text-muted)', fontSize: 12, fontWeight: section === s ? 500 : 400, cursor: 'pointer' }}>{label}</button>
-        ))}
-      </div>
+      {!forcedSection && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+          {[['am', '☀️ 白天'], ['pm', '🌙 晚上']].map(([s, label]) => (
+            <button key={s} onClick={() => setSection(s)} style={{ padding: '5px 14px', borderRadius: 20, border: '0.5px solid', borderColor: section === s ? '#A8C8A0' : 'var(--border-soft)', background: section === s ? '#EEF4EC' : 'var(--bg-surface)', color: section === s ? '#5A7A52' : 'var(--text-muted)', fontSize: 12, fontWeight: section === s ? 500 : 400, cursor: 'pointer' }}>{label}</button>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-secondary)', padding: '2px 8px' }}>‹</button>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{fmt(weekDates[0])}～{fmt(weekDates[6])}</div>
@@ -376,7 +400,7 @@ function WaterWeekGrid({ waterLogs, goalMl }) {
       <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 4 }}>
         <div style={{ width: 80, minWidth: 80, fontSize: 11, color: 'var(--text-muted)' }}>目標 {goal}ml</div>
         {weekDates.map(d => {
-          const ml = waterLogs[d] || 0
+          const ml = waterMl(waterLogs, d)
           const reached = ml >= goal
           const isFuture = d > todayStr
           const isToday = d === todayStr
@@ -514,13 +538,13 @@ function computeObservations({ waterLogs, bodyLogs, products, supplementCheckins
   const today = todayKey()
   const thisWeek = getWeekDates(0)
   const goal = settings.waterGoalMl || 2000
-  const thisWaterGoalDays = thisWeek.filter(d => d <= today && (waterLogs[d] || 0) >= goal).length
+  const thisWaterGoalDays = thisWeek.filter(d => d <= today && waterMl(waterLogs, d) >= goal).length
   if (thisWaterGoalDays >= 5) {
     obs.push({ icon: '💧', text: `這週你有 ${thisWaterGoalDays} 天達到飲水目標，水分補充得很好！` })
   } else {
     const lastWeek = getWeekDates(-1)
-    const thisAvg = thisWeek.filter(d => d <= today).reduce((s, d) => s + (waterLogs[d] || 0), 0) / Math.max(1, thisWeek.filter(d => d <= today).length)
-    const lastAvg = lastWeek.reduce((s, d) => s + (waterLogs[d] || 0), 0) / 7
+    const thisAvg = thisWeek.filter(d => d <= today).reduce((s, d) => s + waterMl(waterLogs, d), 0) / Math.max(1, thisWeek.filter(d => d <= today).length)
+    const lastAvg = lastWeek.reduce((s, d) => s + waterMl(waterLogs, d), 0) / 7
     if (lastAvg > 0 && thisAvg > lastAvg * 1.1) {
       obs.push({ icon: '💧', text: `飲水量比上週多了 ${Math.round(thisAvg - lastAvg)}ml，繼續保持 ✦` })
     }
@@ -584,7 +608,7 @@ function computeAchievements({ products, waterLogs, bodyLogs, exercises, setting
   for (let i = 0; i < 60; i++) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const key = localDateStr(d)
-    if ((waterLogs[key] || 0) >= goalMl) waterStreak++; else break
+    if (waterMl(waterLogs, key) >= goalMl) waterStreak++; else break
   }
   if (waterStreak >= 7) unlocked.add('water_7')
   let bodyStreak = 0
@@ -606,17 +630,18 @@ function computeAchievements({ products, waterLogs, bodyLogs, exercises, setting
 export default function AchievementsPage({ store }) {
   const { state, updateExerciseTypes } = store
   const { settings, products, waterLogs, bodyLogs, exercises, supplementCheckins } = state
-  const [trackingTab, setTrackingTab] = useState('skincare')
+  const [trackingTab, setTrackingTab] = useState('supplement')
 
   const observations = useMemo(() =>
     computeObservations({ waterLogs, bodyLogs, products, supplementCheckins, settings, exercises }),
     [waterLogs, bodyLogs, products, supplementCheckins, settings, exercises]
   )
   const TRACKING_TABS = [
-    { id: 'skincare', label: '保養' },
     { id: 'supplement', label: '保健品' },
-    { id: 'water', label: '飲水' },
-    { id: 'exercise', label: '運動' },
+    { id: 'am_skincare', label: '早上保養' },
+    { id: 'pm_skincare', label: '晚上保養' },
+    { id: 'water', label: '飲水紀錄' },
+    { id: 'exercise', label: '運動紀錄' },
   ]
 
   return (
@@ -639,22 +664,18 @@ export default function AchievementsPage({ store }) {
         </Section>
       )}
 
-      {/* 2. 體態趨勢 */}
-      <Section title="體態趨勢">
-        <div className="card" style={{ padding: '14px' }}>
-          <BodyTrendSection bodyLogs={bodyLogs || {}} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} />
-        </div>
-      </Section>
-
-      {/* 3. 日常紀錄 (tabbed) */}
+      {/* 2. 日常紀錄 (tabbed) — 移到體態趨勢前 */}
       <Section title="日常紀錄">
         <div className="card" style={{ padding: '14px' }}>
           <TabPill tabs={TRACKING_TABS} active={trackingTab} onChange={setTrackingTab} />
-          {trackingTab === 'skincare' && (
-            <SkincareTracker products={products} amOrder={settings.trackerAmOrder} pmOrder={settings.trackerPmOrder} />
-          )}
           {trackingTab === 'supplement' && (
             <SupplementTracker supplementItems={settings.supplementItems || []} supplementCheckins={supplementCheckins || {}} />
+          )}
+          {trackingTab === 'am_skincare' && (
+            <SkincareTracker products={products} amOrder={settings.trackerAmOrder} pmOrder={settings.trackerPmOrder} forcedSection="am" />
+          )}
+          {trackingTab === 'pm_skincare' && (
+            <SkincareTracker products={products} amOrder={settings.trackerAmOrder} pmOrder={settings.trackerPmOrder} forcedSection="pm" />
           )}
           {trackingTab === 'water' && (
             <WaterWeekGrid waterLogs={waterLogs || {}} goalMl={settings.waterGoalMl || 2000} />
@@ -662,6 +683,13 @@ export default function AchievementsPage({ store }) {
           {trackingTab === 'exercise' && (
             <ExerciseGrid exercises={exercises || []} exerciseTypes={settings.exerciseTypes || []} onUpdateTypes={updateExerciseTypes} />
           )}
+        </div>
+      </Section>
+
+      {/* 3. 體態趨勢 — 移到日常紀錄後 */}
+      <Section title="體態趨勢">
+        <div className="card" style={{ padding: '14px' }}>
+          <BodyTrendSection bodyLogs={bodyLogs || {}} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} />
         </div>
       </Section>
 

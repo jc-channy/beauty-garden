@@ -161,10 +161,10 @@ textarea:focus {
   inset: 0;
   background: rgba(80, 60, 50, 0.35);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   z-index: 100;
-  padding: 0 10px calc(var(--safe-bottom) + 12px);
+  padding: 20px 10px;
 }
 
 .modal-sheet {

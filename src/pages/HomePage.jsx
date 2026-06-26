@@ -119,7 +119,7 @@ function SectionCard({ tag, tagBg, tagText, children, headerRight }) {
 }
 
 // ── Body section ──────────────────────────────────────────────
-function BodySection({ bodyLog, selectedDate, onSave }) {
+function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat }) {
   const [weight, setWeight] = React.useState('')
   const [bodyFat, setBodyFat] = React.useState('')
   const saved = bodyLog?.weight != null || bodyLog?.bodyFat != null
@@ -137,32 +137,48 @@ function BodySection({ bodyLog, selectedDate, onSave }) {
     }
   }
 
+  const fields = [
+    { label: '體重', unit: 'kg', val: weight, set: setWeight, goal: goalWeight, current: parseFloat(weight) },
+    { label: '體脂率', unit: '%', val: bodyFat, set: setBodyFat, goal: goalFat, current: parseFloat(bodyFat) },
+  ]
+
   return (
     <SectionCard tag="體態" tagBg="#F2E6D9" tagText="#8A6040"
       headerRight={saved ? <span style={{ fontSize: 11, color: '#8A6A40', background: '#F2E6D9', padding: '2px 8px', borderRadius: 8 }}>已記錄 ✓</span> : null}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {[
-          { label: '體重', unit: 'kg', val: weight, set: setWeight },
-          { label: '體脂率', unit: '%', val: bodyFat, set: setBodyFat },
-        ].map(({ label, unit, val, set }) => (
-          <div key={label} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '10px 12px' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              <input
-                type="number" inputMode="decimal" value={val}
-                onChange={e => set(e.target.value)}
-                onBlur={handleBlur}
-                placeholder="—"
-                style={{
-                  width: '100%', background: 'none', border: 'none', outline: 'none',
-                  fontSize: 22, fontWeight: 500, color: 'var(--text-primary)',
-                  padding: 0, fontFamily: 'inherit',
-                }}
-              />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>{unit}</span>
+        {fields.map(({ label, unit, val, set, goal, current }) => {
+          const reached = goal != null && !isNaN(current) && current <= goal
+          const diff = goal != null && !isNaN(current) ? (current - goal) : null
+          return (
+            <div key={label} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '10px 12px' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <input
+                  type="number" inputMode="decimal" value={val}
+                  onChange={e => set(e.target.value)}
+                  onBlur={handleBlur}
+                  placeholder="—"
+                  style={{
+                    width: '100%', background: 'none', border: 'none', outline: 'none',
+                    fontSize: 22, fontWeight: 500, color: 'var(--text-primary)',
+                    padding: 0, fontFamily: 'inherit',
+                  }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>{unit}</span>
+              </div>
+              {goal != null && !isNaN(current) && (
+                <div style={{ fontSize: 11, marginTop: 4, color: reached ? '#5A7A52' : 'var(--text-muted)' }}>
+                  {reached
+                    ? `✓ 達標（目標 ${goal}${unit}）`
+                    : `距目標 +${diff.toFixed(1)}${unit}`}
+                </div>
+              )}
+              {goal != null && isNaN(current) && (
+                <div style={{ fontSize: 11, marginTop: 4, color: 'var(--border-soft)' }}>目標 {goal}{unit}</div>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </SectionCard>
   )
@@ -493,14 +509,17 @@ function SupplementSection({ items, checked, selectedDate, onToggle, onEditItems
 const DURATION_PRESETS = [10, 15, 20, 30]
 
 function ExerciseModal({ typeName, onSave, onClose }) {
-  const [duration, setDuration] = React.useState(30)
+  const [duration, setDuration] = React.useState(15)
   const [customMode, setCustomMode] = React.useState(false)
   const [customVal, setCustomVal] = React.useState('')
   const [intensity, setIntensity] = React.useState('moderate')
+  const [customName, setCustomName] = React.useState('')
+
+  const isOther = typeName === '其他'
 
   function handleSave() {
-    const d = customMode ? (parseInt(customVal) || 30) : duration
-    onSave(d, intensity)
+    const d = customMode ? (parseInt(customVal) || 15) : duration
+    onSave(d, intensity, isOther ? customName.trim() : '')
   }
 
   return (
@@ -508,6 +527,20 @@ function ExerciseModal({ typeName, onSave, onClose }) {
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 18 }}>{typeName}</div>
+
+        {/* 其他：自填運動名稱 */}
+        {isOther && (
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>運動內容</div>
+            <input
+              type="text" value={customName}
+              onChange={e => setCustomName(e.target.value)}
+              placeholder="例：跳繩、爬山、騎車…"
+              autoFocus
+              style={{ width: '100%' }}
+            />
+          </div>
+        )}
 
         {/* Duration chips */}
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>時長</div>
@@ -609,7 +642,11 @@ function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDele
 
   function subtitle(entries) {
     if (entries.length === 0) return null
-    if (entries.length === 1) return `${entries[0].durationMin} 分鐘 · ${intensityLabel(entries[0].intensity)}`
+    if (entries.length === 1) {
+      const e = entries[0]
+      const prefix = e.subType ? `${e.subType} · ` : ''
+      return `${prefix}${e.durationMin} 分鐘 · ${intensityLabel(e.intensity)}`
+    }
     const total = entries.reduce((sum, e) => sum + (e.durationMin || 0), 0)
     return `${entries.length} 筆 · 共 ${total} 分鐘`
   }
@@ -682,7 +719,7 @@ function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDele
                           background: 'var(--bg-surface)', borderRadius: 8, padding: '6px 10px',
                         }}>
                           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                            {ex.durationMin} 分鐘 · {intensityLabel(ex.intensity)}
+                            {ex.subType ? `${ex.subType} · ` : ''}{ex.durationMin} 分鐘 · {intensityLabel(ex.intensity)}
                           </span>
                           <button onClick={() => onDelete(ex.id)} style={{
                             background: 'none', border: 'none', cursor: 'pointer',
@@ -702,8 +739,8 @@ function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDele
       {activeModal && (
         <ExerciseModal
           typeName={activeModal}
-          onSave={(durationMin, intensity) => {
-            onAdd(selectedDate, activeModal, '', durationMin, intensity)
+          onSave={(durationMin, intensity, subType) => {
+            onAdd(selectedDate, activeModal, subType || '', durationMin, intensity)
             setActiveModal(null)
           }}
           onClose={() => setActiveModal(null)}
@@ -979,7 +1016,7 @@ export default function HomePage({ store, onManageGroups }) {
     for (let i = 0; i < 365; i++) {
       const key = localDateStr(d)
       const hasBody = bodyLogs[key]?.weight != null
-      const hasWater = (waterLogs[key] || 0) >= waterGoal
+      const rawW = waterLogs[key]; const hasWater = (typeof rawW === 'number' ? rawW : (rawW?.total || 0)) >= waterGoal
       if (!hasBody && !hasWater) break
       s++
       d.setDate(d.getDate() - 1)
@@ -1014,7 +1051,7 @@ export default function HomePage({ store, onManageGroups }) {
       {allDone && <CompletionCard done={doneCount} total={totalCount} streak={streak} />}
 
       {/* 1. 體態 */}
-      <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} />
+      <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} />
 
       {/* 2. 飲水 */}
       <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} entries={waterEntries} onAdd={(ml) => addWater(ml, selectedDate)} onDeleteEntry={(id) => deleteWaterEntry(id, selectedDate)} />

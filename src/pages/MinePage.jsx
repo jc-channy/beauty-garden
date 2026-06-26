@@ -40,8 +40,13 @@ export default function MinePage({ store, onNavigate }) {
 
   function handleSave() {
     const parsedAmounts = quickAmts.split(/[,，\s]+/).map(s => parseInt(s.trim())).filter(n => n > 0)
-    updateSettings({ userName, waterGoalMl: parseInt(goalWater) || 2000, waterQuickAmounts: parsedAmounts.length ? parsedAmounts : [200, 350, 500] })
-    updateBodyGoals({ bodyGoalWeight: goalWeight !== '' ? parseFloat(goalWeight) : null, bodyGoalFat: goalFat !== '' ? parseFloat(goalFat) : null })
+    updateSettings({ userName })
+    updateBodyGoals({
+      bodyGoalWeight: goalWeight !== '' ? parseFloat(goalWeight) : null,
+      bodyGoalFat: goalFat !== '' ? parseFloat(goalFat) : null,
+      waterGoalMl: parseInt(goalWater) || 2000,
+      waterQuickAmounts: parsedAmounts.length ? parsedAmounts : [200, 350, 500],
+    })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
