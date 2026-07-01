@@ -351,7 +351,7 @@ export function useStore(userId) {
       // Build bodyLogs dict
       const bodyLogs = {}
       ;(bodyRows || []).forEach(r => {
-        bodyLogs[r.log_date] = { weight: r.weight ?? null, bodyFat: r.body_fat ?? null }
+        bodyLogs[r.log_date] = { weight: r.weight ?? null, bodyFat: r.body_fat ?? null, bowelCount: r.bowel_count ?? null }
       })
 
       // Build waterLogs dict  { date: { total, entries } }
@@ -580,9 +580,10 @@ export function useStore(userId) {
   // ── Body Logs ──────────────────────────────────────────────
   const upsertBodyLog = useCallback(async (date, weight, bodyFat) => {
     const prevLog = stateRef.current.bodyLogs[date]
+    const bowelCount = prevLog?.bowelCount ?? null  // preserve existing bowel count
     setState(prev => ({
       ...prev,
-      bodyLogs: { ...prev.bodyLogs, [date]: { weight, bodyFat } },
+      bodyLogs: { ...prev.bodyLogs, [date]: { weight, bodyFat, bowelCount } },
     }))
     mutating.current++
     try {
@@ -591,11 +592,47 @@ export function useStore(userId) {
         log_date: date,
         weight: weight ?? null,
         body_fat: bodyFat ?? null,
+        bowel_count: bowelCount,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,log_date' })
       if (error) throw error
     } catch (e) {
       console.error('upsertBodyLog failed:', e)
+      setState(prev => ({
+        ...prev,
+        bodyLogs: prevLog !== undefined
+          ? { ...prev.bodyLogs, [date]: prevLog }
+          : Object.fromEntries(Object.entries(prev.bodyLogs).filter(([k]) => k !== date)),
+      }))
+    } finally {
+      mutating.current--
+    }
+  }, [userId])
+
+  const updateBowelCount = useCallback(async (date, count) => {
+    const prevLog = stateRef.current.bodyLogs[date]
+    const currentWeight = prevLog?.weight ?? null
+    const currentBodyFat = prevLog?.bodyFat ?? null
+    setState(prev => ({
+      ...prev,
+      bodyLogs: {
+        ...prev.bodyLogs,
+        [date]: { ...(prev.bodyLogs[date] || { weight: null, bodyFat: null }), bowelCount: count },
+      },
+    }))
+    mutating.current++
+    try {
+      const { error } = await supabase.from('body_logs').upsert({
+        user_id: userId,
+        log_date: date,
+        weight: currentWeight,
+        body_fat: currentBodyFat,
+        bowel_count: count,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,log_date' })
+      if (error) throw error
+    } catch (e) {
+      console.error('updateBowelCount failed:', e)
       setState(prev => ({
         ...prev,
         bodyLogs: prevLog !== undefined
@@ -814,6 +851,7 @@ export function useStore(userId) {
     updateSettings,
     updateTrackerOrder,
     upsertBodyLog,
+    updateBowelCount,
     addWater,
     deleteWaterEntry,
     resetWater,

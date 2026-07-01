@@ -136,14 +136,16 @@ function SectionCard({ tag, tagBg, tagText, children, headerRight }) {
 }
 
 // ── Body section ──────────────────────────────────────────────
-function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat, bodyLogs }) {
+function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat, bodyLogs, onUpdateBowelCount }) {
   const [weight, setWeight] = React.useState('')
   const [bodyFat, setBodyFat] = React.useState('')
+  const [bowelCount, setBowelCount] = React.useState(bodyLog?.bowelCount ?? 0)
   const saved = bodyLog?.weight != null || bodyLog?.bodyFat != null
 
   React.useEffect(() => {
     setWeight(bodyLog?.weight != null ? String(bodyLog.weight) : '')
     setBodyFat(bodyLog?.bodyFat != null ? String(bodyLog.bodyFat) : '')
+    setBowelCount(bodyLog?.bowelCount ?? 0)
   }, [selectedDate, bodyLog])
 
   function handleBlur() {
@@ -153,6 +155,12 @@ function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat, bodyL
       onSave(selectedDate, w, bf)
       showToast('體態已記錄 ✓')
     }
+  }
+
+  function handleBowelTap(i) {
+    const newCount = bowelCount === i + 1 ? i : i + 1
+    setBowelCount(newCount)
+    onUpdateBowelCount(selectedDate, newCount)
   }
 
   // 找上次已知體脂率
@@ -218,6 +226,29 @@ function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat, bodyL
             </div>
           )
         })}
+      </div>
+
+      {/* ── 排便紀錄 ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>今日排便</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[0, 1, 2].map(i => {
+            const filled = i < bowelCount
+            return (
+              <button key={i} onClick={() => handleBowelTap(i)} style={{
+                width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                background: filled ? '#A07060' : 'var(--bg-surface)',
+                border: `0.5px solid ${filled ? '#A07060' : 'var(--border-soft)'}`,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, color: filled ? '#fff' : '#C4A898',
+                transition: 'all 0.18s',
+              }}>♥</button>
+            )
+          })}
+        </div>
+        {bowelCount > 0 && (
+          <span style={{ fontSize: 11, color: '#A07060' }}>{bowelCount} 次</span>
+        )}
       </div>
     </SectionCard>
   )
@@ -612,7 +643,9 @@ function SupplementEditModal({ items, onSave, onClose }) {
           />
           <button onClick={addItem} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#EEEDFE', color: '#534AB7', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>新增</button>
         </div>
-        <button onClick={() => onSave(list)} className="btn-primary">儲存</button>
+        <div style={{ position: 'sticky', bottom: 0, background: 'var(--bg-card)', paddingTop: 8, paddingBottom: 4 }}>
+          <button onClick={() => onSave(list)} className="btn-primary">儲存</button>
+        </div>
       </div>
     </div>
   )
@@ -804,7 +837,9 @@ function ExerciseTypeModal({ types, onSave, onClose }) {
             placeholder="新增類型…" style={{ flex: 1 }} />
           <button onClick={addType} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#EEF4EC', color: '#5A7A52', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>新增</button>
         </div>
-        <button onClick={() => onSave(list)} className="btn-primary">儲存</button>
+        <div style={{ position: 'sticky', bottom: 0, background: 'var(--bg-card)', paddingTop: 8, paddingBottom: 4 }}>
+          <button onClick={() => onSave(list)} className="btn-primary">儲存</button>
+        </div>
       </div>
     </div>
   )
@@ -981,10 +1016,25 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
   const touchRef = React.useRef(null)
   const [swipeX, setSwipeX] = React.useState(0)
 
-  function handleTouchStart(e) { touchRef.current = { startX: e.touches[0].clientX, handled: false }; setSwipeX(0) }
-  function handleTouchMove(e) { if (!touchRef.current) return; const dx = e.touches[0].clientX - touchRef.current.startX; if (Math.abs(dx) > 10) setSwipeX(dx) }
+  function handleTouchStart(e) {
+    touchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, handled: false, cancelled: false }
+    setSwipeX(0)
+  }
+  function handleTouchMove(e) {
+    if (!touchRef.current || touchRef.current.cancelled) return
+    const dx = e.touches[0].clientX - touchRef.current.startX
+    const dy = e.touches[0].clientY - touchRef.current.startY
+    // Cancel if vertical movement dominates (diagonal / scroll detection)
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 5) {
+      touchRef.current.cancelled = true
+      setSwipeX(0)
+      return
+    }
+    if (Math.abs(dx) > 10) setSwipeX(dx)
+  }
   function handleTouchEnd(e) {
     if (!touchRef.current) return
+    if (touchRef.current.cancelled) { touchRef.current = null; setSwipeX(0); return }
     const dx = e.changedTouches[0].clientX - touchRef.current.startX
     touchRef.current.handled = true; setSwipeX(0)
     if (dx > 80) { onToggle() }
@@ -1123,7 +1173,7 @@ function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggl
           <div style={{ padding: '10px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>這個時段沒有保養品</div>
         ) : (
           tabProducts.map((p, idx) => (
-            <CheckItem key={p.id} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, tab)} onToggle={() => onToggle(p.id, tab)} section={tab} index={idx + 1} />
+            <CheckItem key={`${p.id}-${selectedDate}`} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, tab)} onToggle={() => onToggle(p.id, tab)} section={tab} index={idx + 1} />
           ))
         )}
       </div>
@@ -1178,7 +1228,7 @@ function CompletionCard({ done, total, streak }) {
 
 // ── Main page ─────────────────────────────────────────────────
 export default function HomePage({ store, onManageGroups }) {
-  const { state, toggleProductUseDate, groupDays, upsertBodyLog, addWater, deleteWaterEntry, addExercise, deleteExercise, toggleSupplement, updateSupplementItems, updateExerciseTypes, updateBodyGoals } = store
+  const { state, toggleProductUseDate, groupDays, upsertBodyLog, updateBowelCount, addWater, deleteWaterEntry, addExercise, deleteExercise, toggleSupplement, updateSupplementItems, updateExerciseTypes, updateBodyGoals } = store
   const today = todayKey()
   const { products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins } = state
 
@@ -1186,14 +1236,16 @@ export default function HomePage({ store, onManageGroups }) {
   const [selectedGroupId, setSelectedGroupId] = React.useState(null)
 
   const groups = routineGroups || []
-  const todayDow = new Date().getDay()
+
+  // Use selected date's day-of-week so switching dates shows the right group
+  const selectedDow = new Date(selectedDate + 'T12:00:00').getDay()
 
   const autoGroupId = React.useMemo(() => {
-    const match = groups.find(g => (groupDays[g.id] || []).includes(todayDow))
+    const match = groups.find(g => (groupDays[g.id] || []).includes(selectedDow))
     if (match) return match.id
     const anyConfigured = groups.some(g => (groupDays[g.id] || []).length > 0)
     return anyConfigured ? null : (groups[0]?.id ?? null)
-  }, [groups, groupDays, todayDow])
+  }, [groups, groupDays, selectedDow])
 
   const effectiveGroupId = selectedGroupId ?? autoGroupId
   const selectedGroup = groups.find(g => g.id === effectiveGroupId) || null
@@ -1310,7 +1362,7 @@ export default function HomePage({ store, onManageGroups }) {
       {allDone && <CompletionCard done={doneCount} total={totalCount} streak={streak} />}
 
       {/* 1. 體態 */}
-      <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} bodyLogs={bodyLogs} />
+      <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} bodyLogs={bodyLogs} onUpdateBowelCount={updateBowelCount} />
 
       {/* 2. 飲水 */}
       <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} entries={waterEntries} onAdd={(ml) => addWater(ml, selectedDate)} onDeleteEntry={(id) => deleteWaterEntry(id, selectedDate)} onUpdateQuickAmounts={(amounts) => updateBodyGoals({ waterQuickAmounts: amounts })} />

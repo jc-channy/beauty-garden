@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import TabBar from './components/TabBar.jsx'
+import Toast from './components/Toast.jsx'
 import HomePage from './pages/HomePage.jsx'
 import ProductsPage from './pages/ProductsPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
@@ -87,6 +88,7 @@ function MainApp({ userId }) {
     <>
       {pages[tab]}
       <TabBar current={tab} onChange={setTab} />
+      <Toast />
     </>
   )
 }
