@@ -568,82 +568,91 @@ function SupplementEditModal({ items, onSave, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '85vh', overflowY: 'auto' }}>
-        <div className="modal-handle" />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>管理營養品</div>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>⠿ 拖曳排序</span>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{
+        maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 0, overflowY: 'hidden',
+      }}>
+        {/* ── Header (non-scrollable) ── */}
+        <div style={{ padding: '20px 20px 0', flexShrink: 0 }}>
+          <div className="modal-handle" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>管理營養品</div>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>⠿ 拖曳排序</span>
+          </div>
         </div>
 
-        <div ref={listRef}>
-          {list.map((item, i) => {
-            const isExp = expandedIdx === i
-            const isDrag = dragIdx === i
-            const isOver = overIdx === i && dragIdx !== null && dragIdx !== i
-            return (
-              <div key={i} style={{
-                opacity: isDrag ? 0.4 : 1, transition: 'opacity 0.15s',
-                borderTop: isOver && dragIdx > i ? '2px solid #AFA9EC' : 'none',
-                borderBottom: isOver && dragIdx < i ? '2px solid #AFA9EC' : 'none',
-                marginBottom: 5,
-              }}>
-                {/* Row */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px',
-                  background: isExp ? '#F5F3FE' : 'var(--bg-surface)',
-                  border: `0.5px solid ${isExp ? '#AFA9EC' : 'var(--border-soft)'}`,
-                  borderRadius: isExp ? '10px 10px 0 0' : 10,
+        {/* ── Scrollable content ── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
+          <div ref={listRef}>
+            {list.map((item, i) => {
+              const isExp = expandedIdx === i
+              const isDrag = dragIdx === i
+              const isOver = overIdx === i && dragIdx !== null && dragIdx !== i
+              return (
+                <div key={i} style={{
+                  opacity: isDrag ? 0.4 : 1, transition: 'opacity 0.15s',
+                  borderTop: isOver && dragIdx > i ? '2px solid #AFA9EC' : 'none',
+                  borderBottom: isOver && dragIdx < i ? '2px solid #AFA9EC' : 'none',
+                  marginBottom: 5,
                 }}>
-                  <div onTouchStart={e => handleDragStart(e, i)} onMouseDown={e => handleDragStart(e, i)} style={{ fontSize: 16, color: 'var(--text-muted)', padding: '2px 4px', userSelect: 'none', touchAction: 'none', flexShrink: 0, cursor: 'grab' }}>⠿</div>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', cursor: 'pointer' }} onClick={() => setExpandedIdx(isExp ? null : i)}>
-                    {/* 時機 badges 在前 */}
-                    {(item.timings || []).map(t => {
-                      const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
-                      return <span key={t} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 5, background: c.bg, color: c.text, fontWeight: 500, whiteSpace: 'nowrap' }}>{t}</span>
-                    })}
-                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{item.name}</span>
-                    {item.amount ? <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {item.amount}</span> : null}
-                  </div>
-                  <button onClick={e => { e.stopPropagation(); deleteItem(i) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#C07070', padding: '0 2px', flexShrink: 0 }}>×</button>
-                </div>
-
-                {/* Expanded panel */}
-                {isExp && (
-                  <div style={{ padding: '10px 12px 12px', background: '#F5F3FE', border: '0.5px solid #AFA9EC', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>份量備忘</div>
-                    <input type="text" value={item.amount} onChange={e => updateItem(i, { ...item, amount: e.target.value })} placeholder="例：2顆、1匙" style={{ width: '100%', marginBottom: 10, fontSize: 12 }} />
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>食用時機</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                      {SUPP_TIMINGS.map(t => {
-                        const active = (item.timings || []).includes(t)
+                  {/* Row */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px',
+                    background: isExp ? '#F5F3FE' : 'var(--bg-surface)',
+                    border: `0.5px solid ${isExp ? '#AFA9EC' : 'var(--border-soft)'}`,
+                    borderRadius: isExp ? '10px 10px 0 0' : 10,
+                  }}>
+                    <div onTouchStart={e => handleDragStart(e, i)} onMouseDown={e => handleDragStart(e, i)} style={{ fontSize: 16, color: 'var(--text-muted)', padding: '2px 4px', userSelect: 'none', touchAction: 'none', flexShrink: 0, cursor: 'grab' }}>⠿</div>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', cursor: 'pointer' }} onClick={() => setExpandedIdx(isExp ? null : i)}>
+                      {(item.timings || []).map(t => {
                         const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
-                        return (
-                          <button key={t} onClick={() => toggleTiming(i, t)} style={{
-                            padding: '4px 10px', borderRadius: 12, fontSize: 11, cursor: 'pointer',
-                            border: `0.5px solid ${active ? c.text + '60' : 'var(--border-soft)'}`,
-                            background: active ? c.bg : 'transparent',
-                            color: active ? c.text : 'var(--text-muted)',
-                            fontWeight: active ? 500 : 400,
-                          }}>{t}</button>
-                        )
+                        return <span key={t} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 5, background: c.bg, color: c.text, fontWeight: 500, whiteSpace: 'nowrap' }}>{t}</span>
                       })}
+                      <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{item.name}</span>
+                      {item.amount ? <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {item.amount}</span> : null}
                     </div>
+                    <button onClick={e => { e.stopPropagation(); deleteItem(i) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#C07070', padding: '0 2px', flexShrink: 0 }}>×</button>
                   </div>
-                )}
-              </div>
-            )
-          })}
+
+                  {/* Expanded panel */}
+                  {isExp && (
+                    <div style={{ padding: '10px 12px 12px', background: '#F5F3FE', border: '0.5px solid #AFA9EC', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>份量備忘</div>
+                      <input type="text" value={item.amount} onChange={e => updateItem(i, { ...item, amount: e.target.value })} placeholder="例：2顆、1匙" style={{ width: '100%', marginBottom: 10, fontSize: 12 }} />
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>食用時機</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {SUPP_TIMINGS.map(t => {
+                          const active = (item.timings || []).includes(t)
+                          const c = TIMING_COLORS[t] || { bg: '#EEE', text: '#666' }
+                          return (
+                            <button key={t} onClick={() => toggleTiming(i, t)} style={{
+                              padding: '4px 10px', borderRadius: 12, fontSize: 11, cursor: 'pointer',
+                              border: `0.5px solid ${active ? c.text + '60' : 'var(--border-soft)'}`,
+                              background: active ? c.bg : 'transparent',
+                              color: active ? c.text : 'var(--text-muted)',
+                              fontWeight: active ? 500 : 400,
+                            }}>{t}</button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, margin: '10px 0 16px' }}>
+            <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addItem()}
+              placeholder="新增品項…"
+              style={{ flex: 1 }}
+            />
+            <button onClick={addItem} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#EEEDFE', color: '#534AB7', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>新增</button>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, margin: '10px 0 16px' }}>
-          <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addItem()}
-            placeholder="新增品項…"
-            style={{ flex: 1 }}
-          />
-          <button onClick={addItem} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#EEEDFE', color: '#534AB7', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>新增</button>
-        </div>
-        <div style={{ position: 'sticky', bottom: 0, background: 'var(--bg-card)', paddingTop: 8, paddingBottom: 4 }}>
+        {/* ── Save button (always visible at bottom of modal) ── */}
+        <div style={{ padding: '10px 20px 20px', borderTop: '0.5px solid var(--border-soft)', flexShrink: 0 }}>
           <button onClick={() => onSave(list)} className="btn-primary">儲存</button>
         </div>
       </div>
@@ -820,24 +829,35 @@ function ExerciseTypeModal({ types, onSave, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        <div className="modal-handle" />
-        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>管理運動類型</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-          {list.map((t, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-surface)', borderRadius: 8, padding: '8px 12px' }}>
-              <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{t}</span>
-              <button onClick={() => removeType(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#C07070', padding: '0 2px' }}>×</button>
-            </div>
-          ))}
+      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{
+        maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 0, overflowY: 'hidden',
+      }}>
+        {/* ── Header ── */}
+        <div style={{ padding: '20px 20px 0', flexShrink: 0 }}>
+          <div className="modal-handle" />
+          <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>管理運動類型</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <input type="text" value={newType} onChange={e => setNewType(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addType()}
-            placeholder="新增類型…" style={{ flex: 1 }} />
-          <button onClick={addType} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#EEF4EC', color: '#5A7A52', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>新增</button>
+
+        {/* ── Scrollable content ── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+            {list.map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-surface)', borderRadius: 8, padding: '8px 12px' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{t}</span>
+                <button onClick={() => removeType(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#C07070', padding: '0 2px' }}>×</button>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <input type="text" value={newType} onChange={e => setNewType(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addType()}
+              placeholder="新增類型…" style={{ flex: 1 }} />
+            <button onClick={addType} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#EEF4EC', color: '#5A7A52', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>新增</button>
+          </div>
         </div>
-        <div style={{ position: 'sticky', bottom: 0, background: 'var(--bg-card)', paddingTop: 8, paddingBottom: 4 }}>
+
+        {/* ── Save button (always visible) ── */}
+        <div style={{ padding: '10px 20px 20px', borderTop: '0.5px solid var(--border-soft)', flexShrink: 0 }}>
           <button onClick={() => onSave(list)} className="btn-primary">儲存</button>
         </div>
       </div>
