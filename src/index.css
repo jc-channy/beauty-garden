@@ -172,8 +172,8 @@ textarea:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
-  padding: 20px 10px;
+  z-index: 200;
+  padding: 20px 10px calc(var(--tab-height) + var(--safe-bottom) + 12px);
 }
 
 .modal-sheet {
