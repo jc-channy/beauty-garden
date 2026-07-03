@@ -1021,17 +1021,7 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
     ((section === 'am' && product.timeOfDay === 'pm') || (section === 'pm' && product.timeOfDay === 'am'))
   const cautionText = getCautionText(product)
 
-  const prevUsedRef = React.useRef(usedToday)
   const [justChecked, setJustChecked] = React.useState(false)
-
-  React.useEffect(() => {
-    if (!prevUsedRef.current && usedToday) {
-      setJustChecked(true)
-      showToast(`${displayName} 完成 ✦`)
-      setTimeout(() => setJustChecked(false), 420)
-    }
-    prevUsedRef.current = usedToday
-  }, [usedToday, displayName])
 
   const touchRef = React.useRef(null)
   const [swipeX, setSwipeX] = React.useState(0)
@@ -1057,7 +1047,15 @@ function CheckItem({ product, usedToday, onToggle, section, index }) {
     if (touchRef.current.cancelled) { touchRef.current = null; setSwipeX(0); return }
     const dx = e.changedTouches[0].clientX - touchRef.current.startX
     touchRef.current.handled = true; setSwipeX(0)
-    if (dx > 80) { onToggle() }
+    if (dx > 80) {
+      // Show animation/toast only when user actually swipes to check (not unchecked→checked via prop)
+      if (!usedToday) {
+        setJustChecked(true)
+        showToast(`${displayName} 完成 ✦`)
+        setTimeout(() => setJustChecked(false), 420)
+      }
+      onToggle()
+    }
   }
   function handleClick() { if (touchRef.current?.handled) touchRef.current = null }
 
@@ -1193,7 +1191,7 @@ function SkincareCombinedSection({ amProducts, pmProducts, selectedDate, onToggl
           <div style={{ padding: '10px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>這個時段沒有保養品</div>
         ) : (
           tabProducts.map((p, idx) => (
-            <CheckItem key={`${p.id}-${selectedDate}`} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, tab)} onToggle={() => onToggle(p.id, tab)} section={tab} index={idx + 1} />
+            <CheckItem key={`${p.id}-${selectedDate}-${tab}`} product={p} usedToday={isUsedOnDate(p.usageLog, selectedDate, tab)} onToggle={() => onToggle(p.id, tab)} section={tab} index={idx + 1} />
           ))
         )}
       </div>
