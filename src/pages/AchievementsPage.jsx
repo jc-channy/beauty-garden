@@ -396,45 +396,83 @@ function SuppGrid({ suppItems, supplementCheckins, weekDates, todayStr }) {
   )
 }
 
-// ── Body + Bowel Section ──────────────────────────────────────────────────────
-function BodySection({ weekDates, bodyLogs, goalWeight, goalFat, todayStr }) {
-  const [tab, setTab] = useState('weight')
-  const isWeight = tab === 'weight'
-  const unit = isWeight ? 'kg' : '%'
-  const goal = isWeight ? goalWeight : goalFat
+// ── Body Calendar ─────────────────────────────────────────────────────────────
+function BodyCalendar({ bodyLogs, goalWeight, goalFat, todayStr }) {
+  const todayDate = new Date()
+  const [calYear,  setCalYear]  = useState(todayDate.getFullYear())
+  const [calMonth, setCalMonth] = useState(todayDate.getMonth())
 
-  const pts = weekDates.map(d => ({ val: isWeight ? (bodyLogs[d]?.weight ?? null) : (bodyLogs[d]?.bodyFat ?? null) }))
-  const valid = pts.filter(p => p.val != null)
-  const lastVal = valid.length > 0 ? valid[valid.length - 1].val : null
+  const isCurrentMonth = calYear === todayDate.getFullYear() && calMonth === todayDate.getMonth()
+  const canGoNext = !isCurrentMonth
+
+  const prevMonth = () => {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11) }
+    else setCalMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (!canGoNext) return
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0) }
+    else setCalMonth(m => m + 1)
+  }
+
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate()
+  const firstDow    = new Date(calYear, calMonth, 1).getDay() // 0=Sun
+  const DOW_SUN = ['日','一','二','三','四','五','六']
+
+  // latest recorded weight/fat for stat display
+  const allDays = Array.from({ length: daysInMonth }, (_, i) => {
+    const d = new Date(calYear, calMonth, i + 1)
+    return localDateStr(d)
+  })
+  const recordedDays = allDays.filter(d => d <= todayStr && bodyLogs[d]?.weight != null)
+  const latestDay = recordedDays[recordedDays.length - 1]
+  const firstDay  = recordedDays[0]
+  const latestW   = latestDay ? bodyLogs[latestDay].weight : null
+  const firstW    = firstDay  ? bodyLogs[firstDay].weight  : null
+  const monthDelta = (latestW != null && firstW != null && latestDay !== firstDay)
+    ? (latestW - firstW).toFixed(1) : null
 
   return (
     <div>
-      <div style={{ display:'flex', gap:5, marginBottom:12 }}>
-        {[['weight','體重'],['fat','體脂']].map(([id, lb]) => (
-          <button key={id} onClick={() => setTab(id)} style={{
-            padding:'5px 14px', borderRadius:16, fontSize:12, cursor:'pointer', border:'1px solid',
-            background: tab === id ? ACCENT_LIGHT : 'transparent',
-            borderColor: tab === id ? ACCENT : 'var(--border-soft)',
-            color: tab === id ? ACCENT_DARK : 'var(--text-muted)',
-            fontWeight: tab === id ? 600 : 400
-          }}>{lb}</button>
-        ))}
+      {/* Month nav */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+        <button onClick={prevMonth} style={{
+          background:'none', border:`1px solid var(--border-soft)`, borderRadius:10,
+          padding:'4px 12px', fontSize:12, color:'var(--text-secondary)', cursor:'pointer',
+          display:'flex', alignItems:'center', gap:3
+        }}>‹ {calMonth === 0 ? 12 : calMonth}月</button>
+        <span style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)' }}>
+          {calYear}年{calMonth + 1}月
+        </span>
+        <button onClick={nextMonth} style={{
+          background:'none', border:`1px solid var(--border-soft)`, borderRadius:10,
+          padding:'4px 12px', fontSize:12, cursor: canGoNext ? 'pointer' : 'default',
+          color: canGoNext ? 'var(--text-secondary)' : 'var(--text-muted)',
+          opacity: canGoNext ? 1 : 0.35, display:'flex', alignItems:'center', gap:3
+        }}>{calMonth === 11 ? 1 : calMonth + 2}月 ›</button>
       </div>
 
-      <BodyLineChart pts={pts} unit={unit} />
-
-      {(lastVal != null || goal) && (
-        <div style={{ display:'flex', gap:8, marginTop:8 }}>
-          {lastVal != null && (
-            <div style={{ flex:1, background:ACCENT_LIGHT, borderRadius:8, padding:'8px 10px', textAlign:'center' }}>
-              <div style={{ fontSize:16, fontWeight:700, color:ACCENT_DARK }}>{lastVal}{unit}</div>
-              <div style={{ fontSize:10, color:'var(--text-muted)' }}>目前值</div>
+      {/* Monthly stats strip */}
+      {(latestW != null || goalWeight) && (
+        <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+          {latestW != null && (
+            <div style={{ flex:1, background:ACCENT_LIGHT, borderRadius:8, padding:'7px 8px', textAlign:'center' }}>
+              <div style={{ fontSize:15, fontWeight:700, color:ACCENT_DARK }}>{latestW}<span style={{ fontSize:10, fontWeight:400 }}>kg</span></div>
+              <div style={{ fontSize:10, color:'var(--text-muted)' }}>最新</div>
             </div>
           )}
-          {goal != null && lastVal != null && (
-            <div style={{ flex:1, background:'var(--bg-surface)', border:'1px solid var(--border-soft)', borderRadius:8, padding:'8px 10px', textAlign:'center' }}>
-              <div style={{ fontSize:16, fontWeight:700, color: Math.abs(lastVal - goal) < 0.5 ? '#5AA05A' : 'var(--text-primary)' }}>
-                {lastVal > goal ? '-' : '+'}{Math.abs(lastVal - goal).toFixed(1)}{unit}
+          {monthDelta != null && (
+            <div style={{ flex:1, background:'var(--bg-surface)', border:'1px solid var(--border-soft)', borderRadius:8, padding:'7px 8px', textAlign:'center' }}>
+              <div style={{ fontSize:15, fontWeight:700, color: parseFloat(monthDelta) < 0 ? '#5AA05A' : parseFloat(monthDelta) > 0 ? '#D46A6A' : 'var(--text-primary)' }}>
+                {parseFloat(monthDelta) > 0 ? '+' : ''}{monthDelta}<span style={{ fontSize:10, fontWeight:400 }}>kg</span>
+              </div>
+              <div style={{ fontSize:10, color:'var(--text-muted)' }}>月變化</div>
+            </div>
+          )}
+          {goalWeight != null && latestW != null && (
+            <div style={{ flex:1, background:'var(--bg-surface)', border:'1px solid var(--border-soft)', borderRadius:8, padding:'7px 8px', textAlign:'center' }}>
+              <div style={{ fontSize:15, fontWeight:700, color: Math.abs(latestW - goalWeight) < 0.5 ? '#5AA05A' : 'var(--text-primary)' }}>
+                {latestW > goalWeight ? '' : '+'}{(latestW - goalWeight).toFixed(1)}<span style={{ fontSize:10, fontWeight:400 }}>kg</span>
               </div>
               <div style={{ fontSize:10, color:'var(--text-muted)' }}>距目標</div>
             </div>
@@ -442,38 +480,66 @@ function BodySection({ weekDates, bodyLogs, goalWeight, goalFat, todayStr }) {
         </div>
       )}
 
-      {/* Bowel strip */}
-      <div style={{ marginTop:14, paddingTop:12, borderTop:'1px solid var(--border-soft)' }}>
-        <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:8 }}>便便記錄</div>
-        <div style={{ display:'flex', gap:4 }}>
-          {weekDates.map((d, i) => {
-            const val = bodyLogs[d]?.bowelCount ?? null
-            const isFuture = d > todayStr
-            return (
-              <div key={d} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-                <div style={{ fontSize:9, color:'var(--text-muted)' }}>{DOW[i]}</div>
-                <div style={{
-                  width:28, height:28, borderRadius:7,
-                  background: isFuture ? 'transparent' : val != null ? BOWEL_CLR[val] : 'var(--border-soft)',
-                  border: isFuture ? '1px dashed var(--border-soft)' : '1px solid rgba(0,0,0,0.05)',
-                  opacity: isFuture ? 0.3 : 1,
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:10, color: val != null && val > 0 ? 'white' : 'var(--text-muted)'
-                }}>
-                  {!isFuture && val != null && val > 0 ? '●' : !isFuture && val === 0 ? '✗' : ''}
-                </div>
+      {/* DOW header */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:1, marginBottom:3 }}>
+        {DOW_SUN.map(d => (
+          <div key={d} style={{ textAlign:'center', fontSize:10, color:'var(--text-muted)', padding:'2px 0' }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2 }}>
+        {Array.from({ length: firstDow }, (_, i) => <div key={`e${i}`} />)}
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1
+          const dateStr = localDateStr(new Date(calYear, calMonth, day))
+          const isToday  = dateStr === todayStr
+          const isFuture = dateStr > todayStr
+          const rec = bodyLogs[dateStr]
+
+          let bg, border
+          if (isToday)       { bg = '#FDF5EC'; border = `1.5px solid ${ACCENT}` }
+          else if (isFuture) { bg = 'transparent'; border = '0.5px dashed rgba(150,140,130,.2)' }
+          else               { bg = 'var(--bg-surface)'; border = '0.5px solid var(--border-soft)' }
+
+          return (
+            <div key={day} style={{
+              borderRadius:6, background:bg, border,
+              display:'flex', flexDirection:'column', alignItems:'center',
+              justifyContent:'flex-start', padding:'4px 1px 3px',
+              overflow:'hidden', opacity: isFuture ? 0.35 : 1, minHeight:50
+            }}>
+              {/* Date */}
+              <div style={{ fontSize:9, fontWeight: isToday ? 600 : 400, color: isToday ? ACCENT_DARK : 'var(--text-muted)', lineHeight:1, marginBottom:2 }}>
+                {day}
               </div>
-            )
-          })}
-        </div>
-        <div style={{ display:'flex', gap:8, marginTop:6, justifyContent:'flex-end' }}>
-          {[[0,'無'],[1,'淡'],[2,'正常'],[3,'深']].map(([v, lb]) => (
-            <span key={v} style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, color:'var(--text-muted)' }}>
-              <span style={{ display:'inline-block', width:10, height:10, borderRadius:3, background:BOWEL_CLR[v], border:'1px solid rgba(0,0,0,0.08)' }} />
-              {lb}
-            </span>
-          ))}
-        </div>
+              {/* Weight */}
+              <div style={{ fontSize:10, fontWeight:500, color: isToday ? ACCENT_DARK : 'var(--text-primary)', lineHeight:1.25 }}>
+                {rec?.weight != null && !isFuture ? rec.weight.toFixed(1) : ''}
+              </div>
+              {/* Body fat */}
+              <div style={{ fontSize:10, fontWeight:500, color:'#C08090', lineHeight:1.25 }}>
+                {rec?.bodyFat != null && !isFuture ? rec.bodyFat.toFixed(1) : ''}
+              </div>
+              {/* Bowel dot */}
+              <div style={{ height:8, display:'flex', alignItems:'center', justifyContent:'center', marginTop:2 }}>
+                {rec?.bowelCount != null && rec.bowelCount > 0 && !isFuture && (
+                  <span style={{ display:'inline-block', width:6, height:6, borderRadius:'50%', background:'#C0907A' }} />
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:10 }}>
+        <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--text-muted)' }}>
+          <span style={{ display:'inline-block', width:7, height:7, borderRadius:'50%', background:'#C0907A' }} />
+          便便記錄
+        </span>
+        <span style={{ fontSize:11, color:'#C08090', fontWeight:500 }}>體脂</span>
+        {goalWeight && <span style={{ fontSize:11, color:'var(--text-muted)', marginLeft:'auto' }}>目標 {goalWeight} kg</span>}
       </div>
     </div>
   )
@@ -861,7 +927,7 @@ export default function AchievementsPage({ store }) {
           <CW><SL>本週運動</SL><ExerciseDetail weekExercises={weekExercises} weekDates={weekDates} todayStr={todayStr} /></CW>
           <CW><SL>飲水記錄</SL><WaterBarChart weekDates={weekDates} waterLogs={waterLogs} goalMl={waterGoalMl} todayStr={todayStr} /></CW>
           <CW><SL>保健品打卡</SL><SuppGrid suppItems={supplementItems} supplementCheckins={supplementCheckins} weekDates={weekDates} todayStr={todayStr} /></CW>
-          <CW><SL>體態 ＆ 便便</SL><BodySection weekDates={weekDates} bodyLogs={bodyLogs} goalWeight={bodyGoalWeight} goalFat={bodyGoalFat} todayStr={todayStr} /></CW>
+          <CW><SL>體態 ＆ 便便</SL><BodyCalendar bodyLogs={bodyLogs} goalWeight={bodyGoalWeight} goalFat={bodyGoalFat} todayStr={todayStr} /></CW>
         </>
       ) : (
         <>
