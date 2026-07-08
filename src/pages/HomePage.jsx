@@ -1,7 +1,6 @@
 import React from 'react'
 import { todayKey, localDateStr, CATEGORY_COLORS, isUsedOnDate } from '../store/useStore.js'
 import { showToast } from '../components/Toast.jsx'
-import WorkoutSection from '../components/WorkoutSection.jsx'
 
 const DOW = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -1247,9 +1246,9 @@ function CompletionCard({ done, total, streak }) {
 
 // ── Main page ─────────────────────────────────────────────────
 export default function HomePage({ store, onManageGroups }) {
-  const { state, toggleProductUseDate, groupDays, upsertBodyLog, updateBowelCount, addWater, deleteWaterEntry, addExercise, deleteExercise, toggleSupplement, updateSupplementItems, updateExerciseTypes, updateBodyGoals, loadWorkoutPlans, addWorkoutPlan, updateWorkoutPlan, deleteWorkoutPlan, addWorkoutExercise, updateWorkoutExercise, deleteWorkoutExercise } = store
+  const { state, toggleProductUseDate, groupDays, upsertBodyLog, updateBowelCount, addWater, deleteWaterEntry, addExercise, deleteExercise, toggleSupplement, updateSupplementItems, updateExerciseTypes, updateBodyGoals } = store
   const today = todayKey()
-  const { products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins, workoutPlans } = state
+  const { products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins } = state
 
   const [selectedDate, setSelectedDate] = React.useState(today)
   const [selectedGroupId, setSelectedGroupId] = React.useState(null)
@@ -1407,26 +1406,6 @@ export default function HomePage({ store, onManageGroups }) {
       {/* 5. 運動 */}
       <ExerciseSection exercises={exercises} selectedDate={selectedDate} exerciseTypes={settings.exerciseTypes || ['有氧', '重訓', '瑜珈／伸展']} onAdd={addExercise} onDelete={deleteExercise} onUpdateTypes={updateExerciseTypes} />
 
-      {/* 5b. 重訓計劃 */}
-      <div style={{ background: 'var(--bg-card)', borderRadius: 18, border: '0.5px solid var(--border-soft)', padding: '16px 18px', marginBottom: 10, boxShadow: '0 1px 6px rgba(120,90,70,.06)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ background: '#EDE6DE', color: '#7A6A62', fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 6, letterSpacing: '0.06em' }}>重訓計劃</span>
-          </div>
-        </div>
-        <WorkoutSection
-          workoutPlans={workoutPlans || []}
-          loadWorkoutPlans={loadWorkoutPlans}
-          addWorkoutPlan={addWorkoutPlan}
-          updateWorkoutPlan={updateWorkoutPlan}
-          deleteWorkoutPlan={deleteWorkoutPlan}
-          addWorkoutExercise={addWorkoutExercise}
-          updateWorkoutExercise={updateWorkoutExercise}
-          deleteWorkoutExercise={deleteWorkoutExercise}
-          selectedDate={selectedDate}
-          onLogExercise={addExercise}
-        />
-      </div>
 
 
       {/* No groups nudge */}

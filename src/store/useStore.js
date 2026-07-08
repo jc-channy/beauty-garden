@@ -185,8 +185,6 @@ const INITIAL_STATE = {
   waterLogs: {},        // { date: totalMl }
   exercises: [],        // [{ id, date, type, subType, durationMin, intensity }]
   supplementCheckins: {}, // { date: [name, name, ...] }
-  // Workout plans
-  workoutPlans: [],     // [{ id, name, sortOrder, exercises: [...] }]
 }
 
 // ── DB mapping ────────────────────────────────────────────────
@@ -837,136 +835,6 @@ export function useStore(userId) {
     }
   }, [userId])
 
-  // ── Workout Plans ──────────────────────────────────────────────
-  const loadWorkoutPlans = useCallback(async () => {
-    if (!userId) return
-    const { data: plans, error: pe } = await supabase
-      .from('workout_plans')
-      .select('id, name, sort_order')
-      .eq('user_id', userId)
-      .order('sort_order')
-    if (pe) { console.error('loadWorkoutPlans:', pe); return }
-    if ((plans || []).length === 0) {
-      setState(prev => ({ ...prev, workoutPlans: [] }))
-      return
-    }
-    const { data: exs, error: ee } = await supabase
-      .from('workout_exercises')
-      .select('id, plan_id, name, sets, reps, rest_seconds, bpm, sort_order')
-      .in('plan_id', plans.map(p => p.id))
-      .order('sort_order')
-    if (ee) { console.error('loadWorkoutExercises:', ee); return }
-    const mapped = (plans || []).map(p => ({
-      id: p.id, name: p.name, sortOrder: p.sort_order,
-      exercises: (exs || []).filter(e => e.plan_id === p.id).map(e => ({
-        id: e.id, planId: e.plan_id, name: e.name,
-        sets: e.sets, reps: e.reps, restSeconds: e.rest_seconds, bpm: e.bpm, sortOrder: e.sort_order,
-      }))
-    }))
-    setState(prev => ({ ...prev, workoutPlans: mapped }))
-  }, [userId])
-
-  const addWorkoutPlan = useCallback(async (name) => {
-    const tempId = `tmp-${Date.now()}`
-    const newPlan = { id: tempId, name, sortOrder: 0, exercises: [] }
-    setState(prev => ({ ...prev, workoutPlans: [...(prev.workoutPlans || []), newPlan] }))
-    mutating.current++
-    try {
-      const { data, error } = await supabase.from('workout_plans')
-        .insert({ user_id: userId, name, sort_order: 0 }).select()
-      if (error) throw error
-      if (data?.[0]) {
-        setState(prev => ({
-          ...prev,
-          workoutPlans: prev.workoutPlans.map(p => p.id === tempId ? { ...p, id: data[0].id } : p)
-        }))
-        return data[0].id
-      }
-    } catch (e) {
-      console.error('addWorkoutPlan:', e)
-      setState(prev => ({ ...prev, workoutPlans: (prev.workoutPlans || []).filter(p => p.id !== tempId) }))
-    } finally { mutating.current-- }
-  }, [userId])
-
-  const updateWorkoutPlan = useCallback(async (id, name) => {
-    setState(prev => ({
-      ...prev,
-      workoutPlans: (prev.workoutPlans || []).map(p => p.id === id ? { ...p, name } : p)
-    }))
-    await supabase.from('workout_plans').update({ name }).eq('id', id)
-  }, [])
-
-  const deleteWorkoutPlan = useCallback(async (id) => {
-    setState(prev => ({ ...prev, workoutPlans: (prev.workoutPlans || []).filter(p => p.id !== id) }))
-    await supabase.from('workout_plans').delete().eq('id', id)
-  }, [])
-
-  const addWorkoutExercise = useCallback(async (planId, ex) => {
-    const tempId = `tmp-${Date.now()}`
-    const newEx = { id: tempId, planId, ...ex }
-    setState(prev => ({
-      ...prev,
-      workoutPlans: (prev.workoutPlans || []).map(p =>
-        p.id === planId ? { ...p, exercises: [...(p.exercises || []), newEx] } : p
-      )
-    }))
-    mutating.current++
-    try {
-      const { data, error } = await supabase.from('workout_exercises').insert({
-        plan_id: planId, name: ex.name, sets: ex.sets, reps: ex.reps,
-        rest_seconds: ex.restSeconds, bpm: ex.bpm, sort_order: ex.sortOrder || 0,
-      }).select()
-      if (error) throw error
-      if (data?.[0]) {
-        setState(prev => ({
-          ...prev,
-          workoutPlans: (prev.workoutPlans || []).map(p =>
-            p.id === planId
-              ? { ...p, exercises: (p.exercises || []).map(e => e.id === tempId ? { ...e, id: data[0].id } : e) }
-              : p
-          )
-        }))
-      }
-    } catch (e) {
-      console.error('addWorkoutExercise:', e)
-      setState(prev => ({
-        ...prev,
-        workoutPlans: (prev.workoutPlans || []).map(p =>
-          p.id === planId ? { ...p, exercises: (p.exercises || []).filter(e => e.id !== tempId) } : p
-        )
-      }))
-    } finally { mutating.current-- }
-  }, [])
-
-  const updateWorkoutExercise = useCallback(async (planId, exId, patch) => {
-    setState(prev => ({
-      ...prev,
-      workoutPlans: (prev.workoutPlans || []).map(p =>
-        p.id === planId
-          ? { ...p, exercises: (p.exercises || []).map(e => e.id === exId ? { ...e, ...patch } : e) }
-          : p
-      )
-    }))
-    const row = {}
-    if (patch.name !== undefined) row.name = patch.name
-    if (patch.sets !== undefined) row.sets = patch.sets
-    if (patch.reps !== undefined) row.reps = patch.reps
-    if (patch.restSeconds !== undefined) row.rest_seconds = patch.restSeconds
-    if (patch.bpm !== undefined) row.bpm = patch.bpm
-    if (patch.sortOrder !== undefined) row.sort_order = patch.sortOrder
-    if (Object.keys(row).length > 0) await supabase.from('workout_exercises').update(row).eq('id', exId)
-  }, [])
-
-  const deleteWorkoutExercise = useCallback(async (planId, exId) => {
-    setState(prev => ({
-      ...prev,
-      workoutPlans: (prev.workoutPlans || []).map(p =>
-        p.id === planId ? { ...p, exercises: (p.exercises || []).filter(e => e.id !== exId) } : p
-      )
-    }))
-    await supabase.from('workout_exercises').delete().eq('id', exId)
-  }, [])
-
   return {
     state,
     loading,
@@ -994,12 +862,5 @@ export function useStore(userId) {
     updateSupplementItems,
     updateExerciseTypes,
     updateBodyGoals,
-    loadWorkoutPlans,
-    addWorkoutPlan,
-    updateWorkoutPlan,
-    deleteWorkoutPlan,
-    addWorkoutExercise,
-    updateWorkoutExercise,
-    deleteWorkoutExercise,
   }
 }
