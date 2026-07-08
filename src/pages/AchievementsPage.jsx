@@ -227,46 +227,79 @@ function HabitBars({ bars }) {
 
 // ── Exercise Detail (week) ────────────────────────────────────────────────────
 function ExerciseDetail({ weekExercises, weekDates, todayStr }) {
-  const byType = {}
-  weekExercises.forEach(e => {
-    if (!byType[e.type]) byType[e.type] = { sessions:0, mins:0 }
-    byType[e.type].sessions++
-    byType[e.type].mins += e.durationMin || 30
-  })
-  const types = Object.entries(byType)
-  const dayExs = weekDates.map(d => weekExercises.filter(e => e.date === d))
+  // Positive-only stats
+  const pastExercises = weekExercises.filter(e => e.date <= todayStr)
+  const activeDates   = new Set(pastExercises.map(e => e.date))
+  const totalMins     = pastExercises.reduce((s, e) => s + (e.durationMin || 30), 0)
 
   return (
     <div>
-      {types.length === 0 ? (
-        <div style={{ fontSize:12, color:'var(--text-muted)', textAlign:'center', padding:'10px 0' }}>本週尚未記錄運動</div>
+      {/* Headline: positive stats only */}
+      {activeDates.size > 0 ? (
+        <div style={{
+          background:'#EAF3DE', borderRadius:10, padding:'8px 14px',
+          marginBottom:10, textAlign:'center',
+        }}>
+          <span style={{ fontSize:13, fontWeight:600, color:'#5A7A52' }}>
+            動了 {activeDates.size} 天，累積 {fmtMins(totalMins)} 🌿
+          </span>
+        </div>
       ) : (
-        <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:12 }}>
-          {types.map(([type, d]) => (
-            <div key={type} style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{ fontSize:16 }}>{getTypeIcon(type)}</div>
-              <div style={{ flex:1, fontSize:13, color:'var(--text-primary)' }}>{type}</div>
-              <div style={{ fontSize:12, color:'var(--text-muted)' }}>{d.sessions} 次・{fmtMins(d.mins)}</div>
-            </div>
-          ))}
+        <div style={{ fontSize:12, color:'var(--text-muted)', textAlign:'center', padding:'6px 0 10px' }}>
+          本週尚未記錄運動
         </div>
       )}
-      <div style={{ display:'flex', gap:4 }}>
+
+      {/* Vertical day list: Mon–Sun order (weekDates is already Mon-Sun) */}
+      <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
         {weekDates.map((date, i) => {
-          const exs = dayExs[i]
           const isFuture = date > todayStr
-          const isToday = date === todayStr
+          const isToday  = date === todayStr
+          const dayExs   = weekExercises.filter(e => e.date === date)
+          const hasEx    = dayExs.length > 0
+
           return (
-            <div key={date} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-              <div style={{ fontSize:9, color:'var(--text-muted)' }}>{DOW[i]}</div>
+            <div key={date} style={{
+              display:'flex', alignItems:'center', gap:10,
+              padding:'5px 6px', borderRadius:8,
+              background: isToday ? 'rgba(200,168,122,0.07)' : 'transparent',
+              opacity: isFuture ? 0.35 : 1,
+            }}>
+              {/* Status dot */}
               <div style={{
-                width:32, height:32, borderRadius:8,
-                background: isFuture ? 'transparent' : exs.length > 0 ? '#E8F4E8' : 'var(--bg-surface)',
-                border:`${isToday ? 1.5 : 1}px solid ${isToday ? ACCENT : 'var(--border-soft)'}`,
-                display:'flex', alignItems:'center', justifyContent:'center', fontSize:15,
-                opacity: isFuture ? 0.3 : 1
+                width:26, height:26, borderRadius:'50%', flexShrink:0,
+                border: isToday
+                  ? '1.5px solid #C8A87A'
+                  : hasEx ? 'none' : '1px solid var(--border-soft)',
+                background: hasEx ? '#7AAA6A' : 'transparent',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:11, color: hasEx ? 'white' : 'var(--text-muted)',
+                fontWeight: 600,
               }}>
-                {!isFuture && exs.length > 0 ? getTypeIcon(exs[0].type) : ''}
+                {hasEx ? '✓' : DOW[i]}
+              </div>
+
+              {/* Day label */}
+              <span style={{
+                fontSize:12, color:'var(--text-muted)',
+                width:20, flexShrink:0,
+                fontWeight: isToday ? 700 : 400,
+              }}>{DOW[i]}</span>
+
+              {/* Exercise chips or rest dash */}
+              <div style={{ flex:1, display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
+                {hasEx ? (
+                  dayExs.map((e, idx) => (
+                    <span key={idx} style={{
+                      fontSize:11, padding:'2px 8px', borderRadius:10,
+                      background:'#EAF3DE', color:'#5A7A52',
+                    }}>
+                      {e.type}{e.durationMin ? ` ${e.durationMin}分` : ''}
+                    </span>
+                  ))
+                ) : !isFuture ? (
+                  <span style={{ fontSize:11, color:'var(--border-soft)' }}>—</span>
+                ) : null}
               </div>
             </div>
           )

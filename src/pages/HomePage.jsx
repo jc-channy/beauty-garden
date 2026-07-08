@@ -1,6 +1,17 @@
 import React from 'react'
 import { todayKey, localDateStr, CATEGORY_COLORS, isUsedOnDate } from '../store/useStore.js'
 import { showToast } from '../components/Toast.jsx'
+import ExercisePlanModal from '../components/ExercisePlanModal.jsx'
+
+// Returns the ISO week number for a YYYY-MM-DD string
+function getISOWeek(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const dayNum = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7)
+}
 
 const DOW = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -865,107 +876,309 @@ function ExerciseTypeModal({ types, onSave, onClose }) {
   )
 }
 
-function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDelete, onUpdateTypes }) {
+function ExerciseSection({ exercises, selectedDate, exerciseTypes, exercisePlanItems, onAdd, onDelete, onUpdateTypes, saveAllExercisePlanItems }) {
   const [activeModal, setActiveModal] = React.useState(null) // typeName string
   const [showTypeModal, setShowTypeModal] = React.useState(false)
+  const [showPlanModal, setShowPlanModal] = React.useState(false)
   const [expandedType, setExpandedType] = React.useState(null)
+  const [skippedToday, setSkippedToday] = React.useState([]) // types skipped via "今天休息"
 
   const todayExercises = exercises.filter(e => e.date === selectedDate)
   const intensityLabel = k => INTENSITY_OPTS.find(o => o.key === k)?.label || k
+
+  // Plan logic
+  const todayDow = new Date(selectedDate + 'T00:00:00').getDay() // 0=Sun
+  const isoWeek = getISOWeek(selectedDate)
+  const isAWeek = isoWeek % 2 === 1 // odd weeks = A week (shows biweekly items)
+  const planItems = exercisePlanItems || []
+  const hasPlan = planItems.length > 0
+
+  // Active plan items for today (biweekly filter applied)
+  const todayPlanItems = planItems.filter(item =>
+    item.dayOfWeek === todayDow && !(item.frequency === 'biweekly' && !isAWeek)
+  )
+  // Biweekly items that are "off" this week
+  const offWeekItems = planItems.filter(item =>
+    item.dayOfWeek === todayDow && item.frequency === 'biweekly' && !isAWeek
+  )
+
+  function isLogged(type) {
+    return todayExercises.some(e => e.type === type)
+  }
+
+  function loggedSummary(type) {
+    const entries = todayExercises.filter(e => e.type === type)
+    if (entries.length === 0) return null
+    if (entries.length === 1) {
+      const e = entries[0]
+      return `${e.subType ? e.subType + ' · ' : ''}${e.durationMin} 分鐘 · ${intensityLabel(e.intensity)}`
+    }
+    const total = entries.reduce((s, e) => s + (e.durationMin || 0), 0)
+    return `${entries.length} 筆 · 共 ${total} 分鐘`
+  }
 
   function subtitle(entries) {
     if (entries.length === 0) return null
     if (entries.length === 1) {
       const e = entries[0]
-      const prefix = e.subType ? `${e.subType} · ` : ''
-      return `${prefix}${e.durationMin} 分鐘 · ${intensityLabel(e.intensity)}`
+      return `${e.subType ? e.subType + ' · ' : ''}${e.durationMin} 分鐘 · ${intensityLabel(e.intensity)}`
     }
-    const total = entries.reduce((sum, e) => sum + (e.durationMin || 0), 0)
+    const total = entries.reduce((s, e) => s + (e.durationMin || 0), 0)
     return `${entries.length} 筆 · 共 ${total} 分鐘`
+  }
+
+  // Shared "log entry row" used in expanded view
+  function EntryList({ type }) {
+    const entries = todayExercises.filter(e => e.type === type)
+    if (entries.length === 0 || expandedType !== type) return null
+    return (
+      <div style={{ marginLeft: 48, marginBottom: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {entries.map(ex => (
+          <div key={ex.id} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: 'var(--bg-surface)', borderRadius: 8, padding: '6px 10px',
+          }}>
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              {ex.subType ? `${ex.subType} · ` : ''}{ex.durationMin} 分鐘 · {intensityLabel(ex.intensity)}
+            </span>
+            <button onClick={() => onDelete(ex.id)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 17, color: '#C4B0A0', padding: '0 2px', lineHeight: 1,
+            }}>×</button>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   return (
     <>
       <SectionCard tag="運動" tagBg="#D7DFD2" tagText="#5A7A52"
         headerRight={
-          <button onClick={() => setShowTypeModal(true)} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 12, color: 'var(--text-muted)', padding: 0,
-          }}>管理項目</button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button onClick={() => setShowPlanModal(true)} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              fontSize: 12, color: hasPlan ? '#5A7A52' : 'var(--text-muted)',
+              fontWeight: hasPlan ? 600 : 400,
+            }}>週計劃</button>
+            <button onClick={() => setShowTypeModal(true)} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              fontSize: 12, color: 'var(--text-muted)',
+            }}>管理項目</button>
+          </div>
         }>
 
-        {exerciseTypes.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '10px 0', color: 'var(--text-muted)', fontSize: 13 }}>
-            點右上角「管理項目」加入運動類型
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {exerciseTypes.map(type => {
-              const entries = todayExercises.filter(e => e.type === type)
-              const hasDone = entries.length > 0
-              const isExpanded = expandedType === type
-              const sub = subtitle(entries)
+        {/* ── Plan section (when plan exists) ── */}
+        {hasPlan && (
+          <>
+            {todayPlanItems.length === 0 && offWeekItems.length === 0 ? (
+              /* No items today = scheduled rest day */
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: '#F5F9F3', borderRadius: 10, padding: '10px 14px', marginBottom: 8,
+              }}>
+                <span style={{ fontSize: 16 }}>🌿</span>
+                <span style={{ fontSize: 13, color: '#5A7A52' }}>今天是計劃休息日</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 8 }}>
+                {/* Active plan items */}
+                {todayPlanItems.map(item => {
+                  const type = item.exerciseType
+                  const logged = isLogged(type)
+                  const skipped = skippedToday.includes(type)
+                  const isExpanded = expandedType === type
 
-              return (
-                <div key={type}>
-                  {/* Main row */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 2px' }}>
-                    {/* Circle */}
-                    <button
-                      onClick={() => hasDone && setExpandedType(isExpanded ? null : type)}
-                      style={{
-                        width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-                        border: `1.5px solid ${hasDone ? '#7AAA6A' : '#D8CCBF'}`,
-                        background: hasDone ? '#7AAA6A' : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 17, color: hasDone ? '#fff' : 'transparent',
-                        cursor: hasDone ? 'pointer' : 'default',
-                        transition: 'all 0.2s',
-                      }}>✓</button>
+                  return (
+                    <div key={item.id || type}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 2px',
+                        opacity: skipped && !logged ? 0.55 : 1,
+                      }}>
+                        {/* Done circle */}
+                        <button
+                          onClick={() => logged && setExpandedType(isExpanded ? null : type)}
+                          style={{
+                            width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                            border: `1.5px solid ${logged ? '#7AAA6A' : '#D8CCBF'}`,
+                            background: logged ? '#7AAA6A' : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 17, color: logged ? '#fff' : 'transparent',
+                            cursor: logged ? 'pointer' : 'default',
+                            transition: 'all 0.2s',
+                          }}>✓</button>
 
-                    {/* Name + subtitle */}
-                    <div
-                      style={{ flex: 1, cursor: hasDone ? 'pointer' : 'default' }}
-                      onClick={() => hasDone && setExpandedType(isExpanded ? null : type)}>
-                      <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{type}</div>
-                      {sub && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{sub}</div>}
-                    </div>
-
-                    {/* ＋ button */}
-                    <button
-                      onClick={() => setActiveModal(type)}
-                      style={{
-                        width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                        border: '0.5px solid var(--border-soft)', background: 'var(--bg-surface)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 20, color: '#5A7A52', cursor: 'pointer', lineHeight: 1,
-                        paddingBottom: 1,
-                      }}>＋</button>
-                  </div>
-
-                  {/* Expanded entries */}
-                  {isExpanded && entries.length > 0 && (
-                    <div style={{ marginLeft: 48, marginBottom: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {entries.map(ex => (
-                        <div key={ex.id} style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          background: 'var(--bg-surface)', borderRadius: 8, padding: '6px 10px',
-                        }}>
-                          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                            {ex.subType ? `${ex.subType} · ` : ''}{ex.durationMin} 分鐘 · {intensityLabel(ex.intensity)}
-                          </span>
-                          <button onClick={() => onDelete(ex.id)} style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            fontSize: 17, color: '#C4B0A0', padding: '0 2px', lineHeight: 1,
-                          }}>×</button>
+                        {/* Name + status */}
+                        <div
+                          style={{ flex: 1, cursor: logged ? 'pointer' : 'default' }}
+                          onClick={() => logged && setExpandedType(isExpanded ? null : type)}>
+                          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{type}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>
+                            {logged
+                              ? loggedSummary(type)
+                              : skipped
+                                ? '今天休息 ✓'
+                                : `目標 ${item.targetMinutes} 分鐘`}
+                          </div>
                         </div>
-                      ))}
+
+                        {/* Action buttons */}
+                        {!logged && !skipped && (
+                          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                            <button
+                              onClick={() => setSkippedToday(prev => [...prev, type])}
+                              style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                fontSize: 11, color: 'var(--text-muted)', padding: '4px 6px',
+                                borderRadius: 8, lineHeight: 1.2,
+                              }}>今天休息</button>
+                            <button
+                              onClick={() => setActiveModal(type)}
+                              style={{
+                                width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                                border: '0.5px solid var(--border-soft)', background: 'var(--bg-surface)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 20, color: '#5A7A52', cursor: 'pointer', lineHeight: 1,
+                                paddingBottom: 1,
+                              }}>＋</button>
+                          </div>
+                        )}
+                        {logged && (
+                          <button
+                            onClick={() => setActiveModal(type)}
+                            style={{
+                              width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                              border: '0.5px solid #D8E8D0', background: '#F0F8EC',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 20, color: '#5A7A52', cursor: 'pointer', lineHeight: 1,
+                              paddingBottom: 1,
+                            }}>＋</button>
+                        )}
+                        {skipped && !logged && (
+                          <button
+                            onClick={() => setSkippedToday(prev => prev.filter(t => t !== type))}
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              fontSize: 16, color: '#C4B0A0', padding: '0 4px',
+                            }} title="取消休息">↩</button>
+                        )}
+                      </div>
+                      <EntryList type={type} />
                     </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                  )
+                })}
+
+                {/* Off-week biweekly items (greyed) */}
+                {offWeekItems.map(item => (
+                  <div key={`off-${item.id || item.exerciseType}`} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 2px',
+                    opacity: 0.42,
+                  }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                      border: '1.5px dashed #C8A87A', background: 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, color: '#C8A87A', fontWeight: 600,
+                    }}>隔週</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>
+                        {item.exerciseType}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>下週才有</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Divider: unplanned logging */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div style={{ flex: 1, height: 0.5, background: 'var(--border-soft)' }} />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>計劃外記錄</span>
+              <div style={{ flex: 1, height: 0.5, background: 'var(--border-soft)' }} />
+            </div>
+          </>
+        )}
+
+        {/* ── Exercise types list ── */}
+        {(() => {
+          // When plan active: only show types NOT already in today's plan
+          const planTypes = todayPlanItems.map(p => p.exerciseType)
+          const typesToShow = hasPlan
+            ? exerciseTypes.filter(t => !planTypes.includes(t))
+            : exerciseTypes
+
+          if (typesToShow.length === 0 && !hasPlan) {
+            return (
+              <div style={{ textAlign: 'center', padding: '10px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+                點右上角「管理項目」加入運動類型
+              </div>
+            )
+          }
+
+          if (typesToShow.length === 0 && hasPlan) {
+            return null // All types covered by plan
+          }
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {typesToShow.map(type => {
+                const entries = todayExercises.filter(e => e.type === type)
+                const hasDone = entries.length > 0
+                const isExpanded = expandedType === type
+                const sub = subtitle(entries)
+
+                return (
+                  <div key={type}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 2px' }}>
+                      <button
+                        onClick={() => hasDone && setExpandedType(isExpanded ? null : type)}
+                        style={{
+                          width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                          border: `1.5px solid ${hasDone ? '#7AAA6A' : '#D8CCBF'}`,
+                          background: hasDone ? '#7AAA6A' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 17, color: hasDone ? '#fff' : 'transparent',
+                          cursor: hasDone ? 'pointer' : 'default',
+                          transition: 'all 0.2s',
+                        }}>✓</button>
+
+                      <div
+                        style={{ flex: 1, cursor: hasDone ? 'pointer' : 'default' }}
+                        onClick={() => hasDone && setExpandedType(isExpanded ? null : type)}>
+                        <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{type}</div>
+                        {sub && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{sub}</div>}
+                      </div>
+
+                      <button
+                        onClick={() => setActiveModal(type)}
+                        style={{
+                          width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                          border: '0.5px solid var(--border-soft)', background: 'var(--bg-surface)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 20, color: '#5A7A52', cursor: 'pointer', lineHeight: 1,
+                          paddingBottom: 1,
+                        }}>＋</button>
+                    </div>
+                    <EntryList type={type} />
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
+
+        {/* Prompt to create a plan when none exists */}
+        {!hasPlan && (
+          <button
+            onClick={() => setShowPlanModal(true)}
+            style={{
+              marginTop: 10, width: '100%', padding: '9px 12px',
+              background: '#EAF3DE', border: '1px dashed #A8C8A0', borderRadius: 10,
+              cursor: 'pointer', fontSize: 13, color: '#5A7A52', textAlign: 'center',
+            }}>
+            ＋ 建立週運動計劃，讓運動更有規律
+          </button>
         )}
       </SectionCard>
 
@@ -986,6 +1199,16 @@ function ExerciseSection({ exercises, selectedDate, exerciseTypes, onAdd, onDele
           types={exerciseTypes}
           onSave={types => { onUpdateTypes(types); setShowTypeModal(false) }}
           onClose={() => setShowTypeModal(false)}
+        />
+      )}
+      {showPlanModal && (
+        <ExercisePlanModal
+          exercisePlanItems={exercisePlanItems || []}
+          exerciseTypes={exerciseTypes}
+          onSave={async (allItems) => {
+            await saveAllExercisePlanItems(allItems)
+          }}
+          onClose={() => setShowPlanModal(false)}
         />
       )}
     </>
@@ -1246,9 +1469,9 @@ function CompletionCard({ done, total, streak }) {
 
 // ── Main page ─────────────────────────────────────────────────
 export default function HomePage({ store, onManageGroups }) {
-  const { state, toggleProductUseDate, groupDays, upsertBodyLog, updateBowelCount, addWater, deleteWaterEntry, addExercise, deleteExercise, toggleSupplement, updateSupplementItems, updateExerciseTypes, updateBodyGoals } = store
+  const { state, toggleProductUseDate, groupDays, upsertBodyLog, updateBowelCount, addWater, deleteWaterEntry, addExercise, deleteExercise, toggleSupplement, updateSupplementItems, updateExerciseTypes, updateBodyGoals, saveAllExercisePlanItems } = store
   const today = todayKey()
-  const { products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins } = state
+  const { products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins, exercisePlanItems } = state
 
   const [selectedDate, setSelectedDate] = React.useState(today)
   const [selectedGroupId, setSelectedGroupId] = React.useState(null)
@@ -1404,7 +1627,16 @@ export default function HomePage({ store, onManageGroups }) {
       <SupplementSection items={supplementItems} checked={supplementChecked} selectedDate={selectedDate} onToggle={toggleSupplement} onEditItems={updateSupplementItems} />
 
       {/* 5. 運動 */}
-      <ExerciseSection exercises={exercises} selectedDate={selectedDate} exerciseTypes={settings.exerciseTypes || ['有氧', '重訓', '瑜珈／伸展']} onAdd={addExercise} onDelete={deleteExercise} onUpdateTypes={updateExerciseTypes} />
+      <ExerciseSection
+        exercises={exercises}
+        selectedDate={selectedDate}
+        exerciseTypes={settings.exerciseTypes || ['有氧', '重訓', '瑜珈／伸展']}
+        exercisePlanItems={exercisePlanItems || []}
+        onAdd={addExercise}
+        onDelete={deleteExercise}
+        onUpdateTypes={updateExerciseTypes}
+        saveAllExercisePlanItems={saveAllExercisePlanItems}
+      />
 
 
 

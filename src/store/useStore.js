@@ -185,6 +185,7 @@ const INITIAL_STATE = {
   waterLogs: {},        // { date: totalMl }
   exercises: [],        // [{ id, date, type, subType, durationMin, intensity }]
   supplementCheckins: {}, // { date: [name, name, ...] }
+  exercisePlanItems: [], // [{ id, dayOfWeek, exerciseType, targetMinutes, frequency, sortOrder }]
 }
 
 // ── DB mapping ────────────────────────────────────────────────
@@ -329,6 +330,7 @@ export function useStore(userId) {
         { data: waterRows },
         { data: exerciseRows },
         { data: supplRows },
+        { data: planRows },
       ] = await Promise.all([
         supabase.from('products').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
         supabase.from('routine_groups').select('*').eq('user_id', userId).order('sort_order', { ascending: true }),
@@ -337,6 +339,7 @@ export function useStore(userId) {
         supabase.from('water_logs').select('*').eq('user_id', userId).order('log_date', { ascending: true }),
         supabase.from('exercise_logs').select('*').eq('user_id', userId).gte('log_date', ninetyDaysAgo).order('log_date', { ascending: false }),
         supabase.from('supplement_logs').select('*').eq('user_id', userId).gte('log_date', thirtyDaysAgo),
+        supabase.from('exercise_plan_items').select('*').eq('user_id', userId).order('sort_order', { ascending: true }),
       ])
 
       if (productRows === null || groupRows === null) {
@@ -377,7 +380,17 @@ export function useStore(userId) {
         supplementCheckins[r.log_date].push(r.supplement_name)
       })
 
-      setState(prev => ({ ...prev, products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins }))
+      // Build exercise plan items
+      const exercisePlanItems = (planRows || []).map(r => ({
+        id: r.id,
+        dayOfWeek: r.day_of_week,
+        exerciseType: r.exercise_type,
+        targetMinutes: r.target_minutes || 30,
+        frequency: r.frequency || 'weekly',
+        sortOrder: r.sort_order || 0,
+      }))
+
+      setState(prev => ({ ...prev, products, routineGroups, settings, bodyLogs, waterLogs, exercises, supplementCheckins, exercisePlanItems }))
     } catch (e) {
       console.error('Load error:', e)
     }
@@ -835,6 +848,67 @@ export function useStore(userId) {
     }
   }, [userId])
 
+  // ── Exercise Plan ──────────────────────────────────────────────
+  const saveAllExercisePlanItems = useCallback(async (allItems) => {
+    // allItems: [{ dayOfWeek, exerciseType, targetMinutes, frequency, sortOrder }]
+    // Replace all plan items for this user atomically.
+
+    // Optimistic update (temp ids)
+    setState(prev => ({
+      ...prev,
+      exercisePlanItems: allItems.map((it, i) => ({
+        ...it,
+        id: it.id || `tmp-${Date.now()}-${i}`,
+        sortOrder: it.sortOrder ?? i,
+      }))
+    }))
+
+    mutating.current++
+    try {
+      // Delete everything, then re-insert
+      const { error: delErr } = await supabase
+        .from('exercise_plan_items')
+        .delete()
+        .eq('user_id', userId)
+      if (delErr) throw delErr
+
+      if (allItems.length > 0) {
+        const { error: insErr } = await supabase
+          .from('exercise_plan_items')
+          .insert(allItems.map((it, i) => ({
+            user_id: userId,
+            day_of_week: it.dayOfWeek,
+            exercise_type: it.exerciseType,
+            target_minutes: it.targetMinutes || 30,
+            frequency: it.frequency || 'weekly',
+            sort_order: it.sortOrder ?? i,
+          })))
+        if (insErr) throw insErr
+      }
+
+      // Reload to get real server-assigned ids
+      const { data: freshRows } = await supabase
+        .from('exercise_plan_items')
+        .select('*')
+        .eq('user_id', userId)
+        .order('sort_order', { ascending: true })
+
+      const exercisePlanItems = (freshRows || []).map(r => ({
+        id: r.id,
+        dayOfWeek: r.day_of_week,
+        exerciseType: r.exercise_type,
+        targetMinutes: r.target_minutes || 30,
+        frequency: r.frequency || 'weekly',
+        sortOrder: r.sort_order || 0,
+      }))
+      setState(prev => ({ ...prev, exercisePlanItems }))
+    } catch (e) {
+      console.error('saveAllExercisePlanItems failed:', e)
+    } finally {
+      mutating.current--
+    }
+  }, [userId])
+
   return {
     state,
     loading,
@@ -862,5 +936,6 @@ export function useStore(userId) {
     updateSupplementItems,
     updateExerciseTypes,
     updateBodyGoals,
+    saveAllExercisePlanItems,
   }
 }
