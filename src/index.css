@@ -176,6 +176,25 @@ textarea:focus {
   padding: 20px 10px calc(var(--tab-height) + var(--safe-bottom) + 12px);
 }
 
+/* Bottom-sheet overlay — slides up from bottom.
+   The sheet itself should add padding-bottom via --sheet-safe-bottom
+   to its innermost footer so content clears the TabBar. */
+.modal-overlay-bottom {
+  position: fixed;
+  inset: 0;
+  background: rgba(80, 60, 50, 0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+}
+
+/* Padding value components inside a bottom sheet must apply
+   to their last footer / save-button area */
+:root {
+  --sheet-footer-pb: calc(var(--tab-height) + var(--safe-bottom) + 12px);
+}
+
 .modal-sheet {
   background: var(--bg-card);
   border-radius: 20px;

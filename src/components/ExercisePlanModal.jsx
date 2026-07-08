@@ -75,11 +75,7 @@ export default function ExercisePlanModal({ exercisePlanItems, exerciseTypes, on
 
   return (
     <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 200,
-        background: 'rgba(0,0,0,0.38)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-      }}
+      className="modal-overlay-bottom"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div style={{
@@ -297,9 +293,12 @@ export default function ExercisePlanModal({ exercisePlanItems, exerciseTypes, on
           })}
         </div>
 
-        {/* Save button */}
+        {/* Save button — paddingBottom clears the TabBar (76px) + safe area */}
         <div style={{
-          padding: '12px 20px 28px',
+          paddingTop: 12,
+          paddingLeft: 20,
+          paddingRight: 20,
+          paddingBottom: 'calc(var(--tab-height, 76px) + var(--safe-bottom, 0px) + 12px)',
           borderTop: '0.5px solid var(--border-soft)',
           flexShrink: 0,
           background: 'var(--bg-card)',
