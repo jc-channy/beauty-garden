@@ -924,7 +924,7 @@ export default function AchievementsPage({ store }) {
   const monthLabel = `${now.getFullYear()}年${now.getMonth() + 1}月`
 
   return (
-    <div style={{ padding:'16px 16px 100px', maxWidth:430, margin:'0 auto' }}>
+    <div className="page-scroll" style={{ paddingTop:16 }}>
       {/* Period toggle */}
       <div style={{ display:'flex', background:'var(--bg-surface)', borderRadius:10, padding:3, border:'1px solid var(--border-soft)', marginBottom:14 }}>
         {[['week','本週'],['month','本月']].map(([id, lb]) => (
