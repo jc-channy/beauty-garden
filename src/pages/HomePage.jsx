@@ -381,8 +381,9 @@ function WaterModal({ quickAmounts, onAdd, onUpdateQuickAmounts, onClose }) {
 }
 
 // ── Water section ─────────────────────────────────────────────
-function WaterSection({ totalMl, goalMl, quickAmounts, entries, onAdd, onDeleteEntry, onUpdateQuickAmounts }) {
+function WaterSection({ totalMl, goalMl, quickAmounts, entries, onAdd, onDeleteEntry, onUpdateQuickAmounts, autoOpen }) {
   const [showModal, setShowModal] = React.useState(false)
+  React.useEffect(() => { if (autoOpen) setShowModal(true) }, [autoOpen])
   const [showEntries, setShowEntries] = React.useState(false)
   const [justAdded, setJustAdded] = React.useState(false)
   const prevDoneRef = React.useRef(totalMl >= goalMl)
@@ -1475,6 +1476,7 @@ export default function HomePage({ store, onManageGroups }) {
 
   const [selectedDate, setSelectedDate] = React.useState(today)
   const [selectedGroupId, setSelectedGroupId] = React.useState(null)
+  const autoOpenWater = React.useMemo(() => new URLSearchParams(window.location.search).get('action') === 'water', [])
 
   const groups = routineGroups || []
 
@@ -1606,7 +1608,7 @@ export default function HomePage({ store, onManageGroups }) {
       <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} bodyLogs={bodyLogs} onUpdateBowelCount={updateBowelCount} />
 
       {/* 2. 飲水 */}
-      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} entries={waterEntries} onAdd={(ml) => addWater(ml, selectedDate)} onDeleteEntry={(id) => deleteWaterEntry(id, selectedDate)} onUpdateQuickAmounts={(amounts) => updateBodyGoals({ waterQuickAmounts: amounts })} />
+      <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} entries={waterEntries} onAdd={(ml) => addWater(ml, selectedDate)} onDeleteEntry={(id) => deleteWaterEntry(id, selectedDate)} onUpdateQuickAmounts={(amounts) => updateBodyGoals({ waterQuickAmounts: amounts })} autoOpen={autoOpenWater} />
 
       {/* 2. 保養（AM + PM 合一） */}
       {products.length > 0 ? (
