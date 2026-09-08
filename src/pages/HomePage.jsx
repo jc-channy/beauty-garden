@@ -147,11 +147,21 @@ function SectionCard({ tag, tagBg, tagText, children, headerRight }) {
 }
 
 // ── Body section ──────────────────────────────────────────────
-function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat, bodyLogs, onUpdateBowelCount }) {
+function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat, bodyLogs, onUpdateBowelCount, autoOpen }) {
   const [weight, setWeight] = React.useState('')
   const [bodyFat, setBodyFat] = React.useState('')
   const [bowelCount, setBowelCount] = React.useState(bodyLog?.bowelCount ?? 0)
   const saved = bodyLog?.weight != null || bodyLog?.bodyFat != null
+  const weightRef = React.useRef(null)
+
+  React.useEffect(() => {
+    if (autoOpen) {
+      setTimeout(() => {
+        weightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        weightRef.current?.focus()
+      }, 400)
+    }
+  }, [autoOpen])
 
   React.useEffect(() => {
     setWeight(bodyLog?.weight != null ? String(bodyLog.weight) : '')
@@ -207,6 +217,7 @@ function BodySection({ bodyLog, selectedDate, onSave, goalWeight, goalFat, bodyL
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                 <input
+                  ref={!isFat ? weightRef : undefined}
                   type="number" inputMode="decimal" value={val}
                   onChange={e => set(e.target.value)}
                   onBlur={handleBlur}
@@ -628,6 +639,8 @@ function SupplementEditModal({ items, onSave, onClose }) {
                   {/* Expanded panel */}
                   {isExp && (
                     <div style={{ padding: '10px 12px 12px', background: '#F5F3FE', border: '0.5px solid #AFA9EC', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>品名</div>
+                      <input type="text" value={item.name} onChange={e => updateItem(i, { ...item, name: e.target.value })} placeholder="品名" style={{ width: '100%', marginBottom: 10, fontSize: 12 }} />
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>份量備忘</div>
                       <input type="text" value={item.amount} onChange={e => updateItem(i, { ...item, amount: e.target.value })} placeholder="例：2顆、1匙" style={{ width: '100%', marginBottom: 10, fontSize: 12 }} />
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>食用時機</div>
@@ -1477,6 +1490,7 @@ export default function HomePage({ store, onManageGroups }) {
   const [selectedDate, setSelectedDate] = React.useState(today)
   const [selectedGroupId, setSelectedGroupId] = React.useState(null)
   const autoOpenWater = React.useMemo(() => new URLSearchParams(window.location.search).get('action') === 'water', [])
+  const autoOpenBody  = React.useMemo(() => new URLSearchParams(window.location.search).get('action') === 'body',  [])
 
   const groups = routineGroups || []
 
@@ -1605,7 +1619,7 @@ export default function HomePage({ store, onManageGroups }) {
       {allDone && <CompletionCard done={doneCount} total={totalCount} streak={streak} />}
 
       {/* 1. 體態 */}
-      <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} bodyLogs={bodyLogs} onUpdateBowelCount={updateBowelCount} />
+      <BodySection bodyLog={bodyLog} selectedDate={selectedDate} onSave={upsertBodyLog} goalWeight={settings.bodyGoalWeight} goalFat={settings.bodyGoalFat} bodyLogs={bodyLogs} onUpdateBowelCount={updateBowelCount} autoOpen={autoOpenBody} />
 
       {/* 2. 飲水 */}
       <WaterSection totalMl={waterToday} goalMl={waterGoal} quickAmounts={settings.waterQuickAmounts} entries={waterEntries} onAdd={(ml) => addWater(ml, selectedDate)} onDeleteEntry={(id) => deleteWaterEntry(id, selectedDate)} onUpdateQuickAmounts={(amounts) => updateBodyGoals({ waterQuickAmounts: amounts })} autoOpen={autoOpenWater} />
