@@ -364,7 +364,7 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
     : [product.brand].filter(Boolean).join('')
 
   return (
-    <div className="card fade-in" style={{ padding: '13px 14px', marginBottom: 8 }}>
+    <div className="card fade-in" onClick={() => setShowEdit(true)} style={{ padding: '13px 14px', marginBottom: 8, cursor: 'pointer' }}>
       <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
         {/* Thumbnail */}
         {product.imagePreview ? (
@@ -423,10 +423,10 @@ function ProductCard({ product, products, onDelete, onUpdate }) {
                 </div>
               )}
             </div>
-            <button onClick={() => setShowEdit(true)} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-muted)', fontSize: 16, lineHeight: 1,
-              padding: '6px 8px', flexShrink: 0, marginLeft: 4,
+            <button onClick={e => { e.stopPropagation(); setShowEdit(true) }} style={{
+              background: '#F2E6D9', border: 'none', cursor: 'pointer',
+              color: '#C8A87A', fontSize: 14, lineHeight: 1,
+              padding: '5px 8px', flexShrink: 0, marginLeft: 4,
               borderRadius: 8,
             }}>✎</button>
           </div>
